@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vite --port 5173",
     "build": "tsc -b && vite build",
-    "preview": "vite preview --port 5173"
+    "preview": "vite preview --port 5173",
+    "deploy:surge": "npm run build && node -e \"require('fs').copyFileSync('dist/index.html','dist/200.html')\" && npx --yes surge ./dist doto-hub.surge.sh"
   },
   "dependencies": {
     "@tanstack/query-sync-storage-persister": "^5.101.2",

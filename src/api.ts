@@ -1,6 +1,8 @@
-// En dev : URLs relatives → proxy Vite (évite CORS hotspot/LAN).
-// Prod / override : VITE_API_URL=http://host:8000
-const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "" : "http://127.0.0.1:8000");
+# En dev : URLs relatives → proxy Vite (évite CORS hotspot/LAN).
+# Prod / preprod : VITE_API_URL ou défaut Render.
+const API_URL =
+  import.meta.env.VITE_API_URL ??
+  (import.meta.env.DEV ? "" : "https://doto-backend-71tk.onrender.com");
 
 const LOCAL_PIN_KEY = "doto_hub_local_pin";
 
