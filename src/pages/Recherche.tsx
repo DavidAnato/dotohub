@@ -138,19 +138,14 @@ export default function Recherche() {
 
   return (
     <div>
-      <h1 style={{ marginBottom: 6 }}>Recherche patient</h1>
-      <p className="muted" style={{ marginBottom: 24 }}>
-        Identifiez un patient par NPI, nom, scan caméra DodoCard, ou douchette USB.
-      </p>
+      <header className="page-head">
+        <h1>Recherche patient</h1>
+        <p className="muted">
+          Identifiez un patient par NPI, nom, scan caméra DotoCard, ou douchette USB.
+        </p>
+      </header>
 
-      <div
-        className="card"
-        style={{
-          marginBottom: 16,
-          borderColor: emergency ? "var(--emergency)" : undefined,
-          background: emergency ? "var(--emergency-soft, #fde8e8)" : undefined,
-        }}
-      >
+      <div className={`panel search-emergency${emergency ? " is-on" : ""}`}>
         <div className="row" style={{ gap: 12, alignItems: "center", justifyContent: "space-between" }}>
           <div className="row" style={{ gap: 10, alignItems: "center" }}>
             <ShieldAlert size={20} color={emergency ? "var(--emergency)" : "var(--muted)"} />
@@ -183,15 +178,15 @@ export default function Recherche() {
               }}
               aria-label="Activer le mode urgence"
             />
-            <span className="small" style={{ fontWeight: 600 }}>
+            <span className="small" style={{ fontWeight: 650 }}>
               {emergency ? "Activé" : "Désactivé"}
             </span>
           </label>
         </div>
       </div>
 
-      <div className="grid cols-2">
-        <div className="card">
+      <div className="grid cols-2" style={{ marginTop: 14 }}>
+        <div className="panel">
           <label className="label">NPI officiel (ANIP)</label>
           <div className="row">
             <input
@@ -217,8 +212,8 @@ export default function Recherche() {
           </div>
         </div>
 
-        <div className="card">
-          <label className="label">Scan DodoCard</label>
+        <div className="panel">
+          <label className="label">Scan DotoCard</label>
           <p className="small muted" style={{ marginBottom: 10 }}>
             Caméra smartphone / webcam, ou collez le token lu par une douchette USB.
           </p>
@@ -260,7 +255,7 @@ export default function Recherche() {
       )}
 
       {results.length > 0 && (
-        <div className="card" style={{ marginTop: 20 }}>
+        <div className="panel table-wrap" style={{ marginTop: 20 }}>
           <table>
             <thead>
               <tr>

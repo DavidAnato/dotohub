@@ -62,7 +62,7 @@ export function UrgenceHeader({ u }: { u: any }) {
 
 export function Empty({ text }: { text: string }) {
   return (
-    <div className="card" style={{ textAlign: "center", color: "var(--muted)" }}>
+    <div className="panel" style={{ textAlign: "center", color: "var(--muted)", padding: "28px 16px" }}>
       {text}
     </div>
   );

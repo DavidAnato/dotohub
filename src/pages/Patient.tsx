@@ -180,12 +180,12 @@ export default function Patient() {
   const hasFullAccess = !needsAccess;
 
   const header = (
-    <div className="row" style={{ justifyContent: "space-between", marginBottom: 16, gap: 12 }}>
+    <div className="row" style={{ justifyContent: "space-between", marginBottom: 18, gap: 12, flexWrap: "wrap" }}>
       <div className="row" style={{ gap: 14, alignItems: "center" }}>
         <Avatar src={patient.photo_url} name={patient.full_name} size={56} />
         <div>
           <h1>{patient.full_name || "Patient"}</h1>
-          <div className="muted mono">
+          <div className="muted mono small" style={{ marginTop: 4 }}>
             {patient.npi}
             {patient.date_naissance ? ` · Né(e) le ${patient.date_naissance}` : ""}
             {patient.sexe ? ` · ${patient.sexe}` : ""}
@@ -456,8 +456,19 @@ function Historique({ patientId }: { patientId: number }) {
             <strong>{c.diagnostic || "Consultation"}</strong>
             <span className="pill blue">{c.type_label}</span>
           </div>
-          <div className="small muted">
-            {new Date(c.date).toLocaleDateString("fr-FR")} · {c.structure_nom} · {c.medecin_nom}
+          <div className="small muted" style={{ marginTop: 4 }}>
+            {new Date(c.date).toLocaleDateString("fr-FR")}
+          </div>
+          <div style={{ marginTop: 6, lineHeight: 1.45 }}>
+            <div>
+              <strong>Médecin :</strong> {c.medecin_nom || "Non renseigné"}
+            </div>
+            {c.medecin_telephone ? (
+              <div className="small muted">Tél. {c.medecin_telephone}</div>
+            ) : null}
+            <div>
+              <strong>Structure :</strong> {c.structure_nom || "Non renseignée"}
+            </div>
           </div>
           {c.notes && <p style={{ marginTop: 8 }}>{c.notes}</p>}
           {canWrite && !c.annule && (
@@ -572,7 +583,15 @@ function Ordonnances({ patientId, patientName }: { patientId: number; patientNam
             <strong>Ordonnance du {new Date(o.date).toLocaleDateString("fr-FR")}</strong>
             <StatusBadge status={o.statut} />
           </div>
-          <div className="small muted">{o.medecin_nom}</div>
+          <div className="small muted" style={{ marginTop: 4 }}>
+            <div>
+              <strong>Médecin :</strong> {o.medecin_nom || "Non renseigné"}
+            </div>
+            {o.medecin_telephone ? (
+              <div>Tél. {o.medecin_telephone}</div>
+            ) : null}
+            {o.structure_nom ? <div>{o.structure_nom}</div> : null}
+          </div>
           <ul style={{ margin: "10px 0 0 18px" }}>
             {o.medicaments.map((m: any) => (
               <li key={m.id}>

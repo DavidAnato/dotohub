@@ -151,10 +151,12 @@ export default function Profil() {
 
   return (
     <div className="page-enter settings-hub" style={{ maxWidth: 560 }}>
-      <h1>Paramètres</h1>
-      <p className="muted" style={{ marginBottom: 20 }}>
-        Gérez votre compte professionnel. Les détails s&apos;ouvrent dans un panneau dédié.
-      </p>
+      <header className="page-head">
+        <h1>Paramètres</h1>
+        <p className="muted">
+          Gérez votre compte professionnel. Les détails s&apos;ouvrent dans un panneau dédié.
+        </p>
+      </header>
 
       <button type="button" className="settings-profile-card settings-profile-card-btn" onClick={openPhoto}>
         <Avatar src={photoSrc} name={user.full_name} size={96} />

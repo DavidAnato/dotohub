@@ -199,7 +199,7 @@ export default function Accueil() {
     <div className="hub-home page-enter">
       <header className="hub-hero stagger" style={{ animationDelay: "40ms" }}>
         <div>
-          <p className="hub-kicker">Espace professionnel</p>
+          <p className="hub-kicker">DotoHub · espace professionnel</p>
           <h1>
             {greeting()}, {name.split(" ")[0]}
           </h1>
@@ -211,9 +211,8 @@ export default function Accueil() {
             {fromCache ? " · cache" : ""}
           </p>
         </div>
-        <div className="hub-hero-badge">
-          <img src="/logo-dotohub.png" alt="DotoHub" height={36} />
-          <span className="pill green">DOTO+</span>
+        <div className="hub-hero-badge" aria-hidden>
+          <img src="/logo-dotohub.png" alt="" />
         </div>
       </header>
 
@@ -249,7 +248,7 @@ export default function Accueil() {
           onClick={destOrdo ? () => nav(destOrdo) : undefined}
         />
         <StatChip
-          label="Scans DodoCard (7 j)"
+          label="Scans DotoCard (7 j)"
           value={stats.scans_7j ?? 0}
           icon={Camera}
           delay={160}
@@ -265,11 +264,10 @@ export default function Accueil() {
       </div>
 
       <div className="hub-main-grid">
-        <div className="card hub-panel stagger" style={{ animationDelay: "220ms" }}>
-          <h3 style={{ marginBottom: 6 }}>Recherche rapide</h3>
+        <section className="panel hub-panel stagger" style={{ animationDelay: "220ms" }}>
+          <h3>Recherche rapide</h3>
           <p className="small muted" style={{ marginBottom: 14 }}>
-            NPI, nom, ou coller un token DodoCard pour ouvrir le dossier.
-            Un scan mobile ouvre aussi ce dossier via SSE.
+            NPI, nom, ou token DotoCard pour ouvrir le dossier. Un scan mobile ouvre aussi le dossier via SSE.
           </p>
           <form onSubmit={onSearch} className="hub-search">
             <input
@@ -299,7 +297,7 @@ export default function Accueil() {
                 <IdCard size={18} strokeWidth={2} />
               </span>
               <div>
-                <strong>Scanner DodoCard</strong>
+                <strong>Scanner DotoCard</strong>
                 <div className="small muted">
                   {roleKey === "ambulancier" ? "QR / token · mode urgence" : "QR / douchette / token"}
                 </div>
@@ -317,9 +315,9 @@ export default function Accueil() {
               </Link>
             ) : null}
           </div>
-        </div>
+        </section>
 
-        <div className="card hub-panel stagger" style={{ animationDelay: "280ms" }}>
+        <section className="panel hub-panel stagger" style={{ animationDelay: "280ms" }}>
           <div className="row" style={{ justifyContent: "space-between", marginBottom: 12 }}>
             <h3>Patients récents</h3>
             <Link to="/recherche" className="small">
@@ -329,7 +327,7 @@ export default function Accueil() {
           {recent.length === 0 ? (
             <div className="hub-empty">
               <p className="muted">
-                Aucun patient récent pour cette session. Lancez une recherche ou un scan DodoCard.
+                Aucun patient récent. Lancez une recherche ou un scan DotoCard.
               </p>
             </div>
           ) : (
@@ -348,24 +346,24 @@ export default function Accueil() {
                         <div className="mono small muted">{p.npi}</div>
                       </div>
                     </div>
-                    <span className="pill blue">Dossier</span>
+                    <span className="small muted" style={{ fontWeight: 650 }}>Ouvrir</span>
                   </Link>
                 </li>
               ))}
             </ul>
           )}
-        </div>
+        </section>
       </div>
 
-      <div className="card hub-emergency-tip stagger" style={{ animationDelay: "360ms" }}>
+      <div className="panel hub-emergency-tip stagger" style={{ animationDelay: "360ms" }}>
         <div className="hub-em-icon">
           <Zap size={22} strokeWidth={2} />
         </div>
-        <div>
+        <div style={{ flex: 1 }}>
           <strong>Mode urgence</strong>
           <p className="small muted" style={{ marginTop: 4 }}>
             Scannez avec le téléphone (app DOTO+ mode pro) : le dossier s&apos;ouvre automatiquement
-            ici sur le bureau via le flux SSE.
+            ici via le flux SSE.
           </p>
         </div>
         <Link to={scanHref} className="btn danger sm">
@@ -374,8 +372,8 @@ export default function Accueil() {
       </div>
 
       {(data?.structures || []).length > 0 ? (
-        <div className="card stagger" style={{ marginTop: 16, animationDelay: "400ms" }}>
-          <div className="row" style={{ justifyContent: "space-between", marginBottom: 12, gap: 12 }}>
+        <section className="stagger" style={{ marginTop: 22, animationDelay: "400ms" }}>
+          <div className="row" style={{ justifyContent: "space-between", marginBottom: 10, gap: 12 }}>
             <h3 style={{ margin: 0 }}>Vos structures</h3>
             <span className="small muted">Affichage informatif</span>
           </div>
@@ -390,7 +388,7 @@ export default function Accueil() {
               </div>
             ))}
           </div>
-        </div>
+        </section>
       ) : null}
     </div>
   );

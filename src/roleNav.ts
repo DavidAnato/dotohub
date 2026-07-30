@@ -11,7 +11,7 @@ export function canSeeAgenda(role?: string): boolean {
   return ["medecin", "admin", "infirmier", "receptionniste"].includes(norm(role));
 }
 
-/** DodoCards : admin uniquement */
+/** DotoCards : admin uniquement */
 export function canSeeDodoCards(role?: string): boolean {
   return norm(role) === "admin";
 }

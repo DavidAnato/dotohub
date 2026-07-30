@@ -110,12 +110,12 @@ export default function LaboFile() {
         className="row"
         style={{ justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}
       >
-        <div>
+        <header className="page-head" style={{ marginBottom: 0 }}>
           <h1 style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <FlaskConical size={22} /> File laboratoire
           </h1>
           <p className="muted small">Suivi des résultats · upload via modal</p>
-        </div>
+        </header>
         <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
           {critCount > 0 && (
             <span className="pill red" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -154,21 +154,23 @@ export default function LaboFile() {
       ) : items.length === 0 ? (
         <Empty text="Aucun examen. Cliquez sur « Nouvel examen » pour en ajouter." />
       ) : (
-        <div className="grid" style={{ gap: 10 }}>
+        <div className="list-stack">
           {items.map((x: any) => {
             const critique = x.statut === "critique";
             return (
               <div
-                className="card"
+                className="list-item"
                 key={x.id}
                 style={
                   critique
                     ? {
-                        borderColor: "rgba(163, 45, 45, 0.45)",
-                        background: "rgba(248, 234, 234, 0.55)",
-                        boxShadow: "inset 3px 0 0 #A32D2D",
+                        flexDirection: "column",
+                        alignItems: "stretch",
+                        borderColor: "color-mix(in srgb, var(--emergency) 40%, var(--border))",
+                        background: "var(--emergency-soft)",
+                        borderLeft: "4px solid var(--emergency)",
                       }
-                    : undefined
+                    : { flexDirection: "column", alignItems: "stretch" }
                 }
               >
                 <div className="row" style={{ justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>

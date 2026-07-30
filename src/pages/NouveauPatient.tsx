@@ -160,19 +160,17 @@ export default function NouveauPatient() {
 
   return (
     <div className="page-enter">
-      <div className="row" style={{ justifyContent: "space-between", marginBottom: 16 }}>
-        <div>
-          <h1 style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <UserPlus size={22} />
-            {isEdit ? "Modifier le patient" : "Nouveau patient"}
-          </h1>
-          <p className="muted small">
-            Identité ANIP (NPI 10 chiffres) et coordonnées — réception / admin / médecin.
-          </p>
-        </div>
-      </div>
+      <header className="page-head">
+        <h1 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <UserPlus size={22} />
+          {isEdit ? "Modifier le patient" : "Nouveau patient"}
+        </h1>
+        <p className="muted small">
+          Identité ANIP (NPI 10 chiffres) et coordonnées — réception / admin / médecin.
+        </p>
+      </header>
 
-      <form className="card" onSubmit={onSubmit}>
+      <form className="panel" onSubmit={onSubmit}>
         <h3 style={{ marginBottom: 12 }}>Identité</h3>
         <div className="grid cols-2">
           <div className="field">

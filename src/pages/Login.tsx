@@ -28,31 +28,43 @@ export default function Login() {
   return (
     <div className="login-screen">
       <div className="login-card card">
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <img
-            src="/logo-dotohub.png"
-            alt="DotoHub"
-            style={{ height: 40, width: "auto", maxWidth: "90%", margin: "0 auto 10px", display: "block" }}
-          />
+        <div className="login-brand">
+          <img src="/logo-dotohub.png" alt="DotoHub" />
+          <h1>DotoHub</h1>
           <p className="muted">Plateforme professionnels · DOTO+</p>
         </div>
         <form onSubmit={submit}>
           <div className="field">
             <label className="label">Identifiant professionnel</label>
-            <input className="input" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="medecin" autoFocus />
+            <input
+              className="input"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="medecin"
+              autoFocus
+            />
           </div>
           <div className="field">
             <label className="label">Mot de passe</label>
-            <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+            <input
+              className="input"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+            />
           </div>
-          {error && <p style={{ color: "var(--emergency)", marginBottom: 12, fontWeight: 600 }}>{error}</p>}
+          {error && (
+            <p style={{ color: "var(--emergency)", marginBottom: 12, fontWeight: 600 }}>{error}</p>
+          )}
           <button className="btn" style={{ width: "100%" }} disabled={busy}>
             {busy ? "Connexion…" : "Se connecter"}
           </button>
         </form>
         <p className="login-footnote small muted">
           <Lock size={13} strokeWidth={2} aria-hidden />
-          Identifiant + mot de passe · JWT · démo <span className="mono">medecin</span> / <span className="mono">Medecin123!</span>
+          Identifiant + mot de passe · JWT · démo{" "}
+          <span className="mono">medecin</span> / <span className="mono">Medecin123!</span>
         </p>
       </div>
     </div>

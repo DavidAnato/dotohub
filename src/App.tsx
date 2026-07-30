@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Navigate, NavLink, Route, Routes, useNavigate } from "react-router-dom";
+import { Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 import { Home, Search, LogOut, Moon, Sun, Radio, Calendar, UserRound, CreditCard } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -12,6 +12,7 @@ import { useHubSSE, type HubSseEvent } from "./hooks";
 import { useAppStore } from "./store/appStore";
 import { api } from "./api";
 import { canSeeAgenda, canSeeDodoCards } from "./roleNav";
+import { qk } from "./queries/keys";
 import Login from "./pages/Login";
 import Accueil from "./pages/Accueil";
 import Recherche from "./pages/Recherche";
@@ -27,9 +28,68 @@ import DodoCards from "./pages/DodoCards";
 const IDLE_LOCK_MS = 15 * 60 * 1000; // inactivité sur la page
 const AWAY_LOCK_MS = 15 * 60 * 1000; // absence onglet / app (pas de verrou immédiat)
 
-function Layout({ children }: { children: React.ReactNode }) {
+function invalidatePatientMedical(
+  qc: ReturnType<typeof useQueryClient>,
+  patientId: number | string | undefined | null
+) {
+  if (patientId == null || patientId === "") return;
+  const id = String(patientId);
+  const num = Number(patientId);
+  const ids = Number.isFinite(num) ? [id, num] : [id];
+
+  for (const pid of ids) {
+    void qc.invalidateQueries({ queryKey: qk.patient(pid) });
+    void qc.invalidateQueries({ queryKey: qk.consultations(pid) });
+    void qc.invalidateQueries({ queryKey: qk.ordonnances(pid) });
+    void qc.invalidateQueries({ queryKey: qk.examens(pid) });
+    void qc.invalidateQueries({ queryKey: qk.constantes(pid) });
+    void qc.invalidateQueries({ queryKey: qk.urgence(pid) });
+    void qc.invalidateQueries({ queryKey: ["patient", pid] });
+  }
+  // Clés legacy / pages pharma-labo
+  void qc.invalidateQueries({ queryKey: ["ordonnances"] });
+  void qc.invalidateQueries({ queryKey: ["labo-examens"] });
+}
+
+function invalidateFromHubEvent(
+  qc: ReturnType<typeof useQueryClient>,
+  ev: HubSseEvent
+) {
+  const pid = ev.patient_id ?? ev.payload?.patient_id;
+  const section = ev.payload?.section || ev.notif_type || ev.type;
+
+  if (
+    section === "rdv" ||
+    ev.type === "appointment" ||
+    String(ev.payload?.kind || "").startsWith("rdv")
+  ) {
+    void qc.invalidateQueries({ queryKey: ["appointments"] });
+  }
+
+  if (
+    ev.type === "dossier_updated" ||
+    ev.type === "ordonnance" ||
+    ev.type === "examen" ||
+    ev.notif_type === "ordonnance" ||
+    ev.notif_type === "examen" ||
+    ev.notif_type === "dossier_updated" ||
+    section === "ordonnances" ||
+    section === "examens" ||
+    section === "dossier"
+  ) {
+    invalidatePatientMedical(qc, pid);
+    void qc.invalidateQueries({ queryKey: qk.hubDashboard });
+  } else if (pid != null) {
+    invalidatePatientMedical(qc, pid);
+  }
+}
+
+function Layout() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
+  const location = useLocation();
+  const locationRef = useRef(location);
+  locationRef.current = location;
   const qc = useQueryClient();
   const online = useAppStore((s) => s.online);
   const theme = useAppStore((s) => s.theme);
@@ -39,12 +99,32 @@ function Layout({ children }: { children: React.ReactNode }) {
   const setPendingAccessId = useAppStore((s) => s.setPendingAccessId);
   const [sseOk, setSseOk] = useState(false);
 
+  const kickFromPatientIfOpen = useCallback(
+    (patientId: number | string | undefined | null, message: string) => {
+      if (patientId == null || patientId === "") return;
+      const path = locationRef.current.pathname;
+      const m = path.match(/^\/patient\/([^/]+)/);
+      const onPatient =
+        m && (m[1] === String(patientId) || Number(m[1]) === Number(patientId));
+      const onPharmaLab =
+        path.startsWith("/pharma") || path.startsWith("/labo") || path.startsWith("/urgence");
+      setToast(message);
+      window.setTimeout(() => setToast(""), 5500);
+      if (onPatient || onPharmaLab) {
+        nav("/", { replace: true });
+      }
+    },
+    [nav, setToast]
+  );
+
   const onSse = useCallback(
     (ev: HubSseEvent) => {
       if (ev.type === "connected") {
         setSseOk(true);
         return;
       }
+      if (ev.type === "ping") return;
+
       if (ev.type === "notification") {
         bumpUnread();
         if (ev.title) {
@@ -52,6 +132,25 @@ function Layout({ children }: { children: React.ReactNode }) {
           window.setTimeout(() => setToast(""), 4200);
         }
         qc.invalidateQueries({ queryKey: ["notifications"] });
+        invalidateFromHubEvent(qc, ev);
+        // Révocation aussi via notif (si l'event typé a été raté)
+        if (ev.payload?.revoked || ev.payload?.close_dossier) {
+          const pid = ev.payload?.patient_id ?? ev.patient_id;
+          const msg =
+            (typeof ev.payload?.message === "string" && ev.payload.message) ||
+            ev.body ||
+            "Accès révoqué par le patient. Le dossier se ferme.";
+          kickFromPatientIfOpen(pid as number | string | undefined, msg);
+        }
+        return;
+      }
+      if (
+        ev.type === "dossier_updated" ||
+        ev.type === "ordonnance" ||
+        ev.type === "examen" ||
+        ev.type === "appointment"
+      ) {
+        invalidateFromHubEvent(qc, ev);
         return;
       }
       if (ev.type === "access_pending" && ev.patient_id) {
@@ -68,7 +167,7 @@ function Layout({ children }: { children: React.ReactNode }) {
             ? `Accès urgence — ${label}`
             : `Accès autorisé — ouverture du dossier ${label}`
         );
-        qc.invalidateQueries({ queryKey: ["patient", String(ev.patient_id)] });
+        invalidatePatientMedical(qc, ev.patient_id);
         nav(`/patient/${ev.patient_id}`);
         window.setTimeout(() => setToast(""), 4200);
         return;
@@ -81,26 +180,40 @@ function Layout({ children }: { children: React.ReactNode }) {
       }
       if (ev.type === "access_expired") {
         setPendingAccessId(null);
-        setToast("Demande d'accès expirée.");
+        const msg = "Demande d'accès expirée. Le dossier se ferme.";
+        kickFromPatientIfOpen(ev.patient_id, msg);
+        if (ev.patient_id) invalidatePatientMedical(qc, ev.patient_id);
         return;
       }
       if (ev.type === "access_revoked") {
         setPendingAccessId(null);
-        setToast("Accès révoqué par le patient.");
-        if (ev.patient_id) {
-          qc.invalidateQueries({ queryKey: ["patient", String(ev.patient_id)] });
-        }
-        window.setTimeout(() => setToast(""), 4200);
+        const msg =
+          (typeof (ev as { message?: string }).message === "string" &&
+            (ev as { message?: string }).message) ||
+          "Accès révoqué par le patient. Le dossier se ferme.";
+        kickFromPatientIfOpen(ev.patient_id, msg);
+        if (ev.patient_id) invalidatePatientMedical(qc, ev.patient_id);
         return;
       }
       if (ev.type === "dodocard_scan" && ev.patient_id) {
+        // Scan mobile (même compte JWT) → ouvrir le dossier ici, même depuis Accueil / autre page.
+        if (ev.consent_required && ev.access_request_id) {
+          setPendingAccessId(ev.access_request_id);
+        } else if (!ev.consent_required) {
+          setPendingAccessId(null);
+        }
         const label = ev.full_name || ev.npi || `#${ev.patient_id}`;
-        setToast(`Scan DodoCard — ouverture du dossier ${label}`);
+        setToast(
+          ev.consent_required
+            ? `Scan DotoCard — en attente de consentement · ${label}`
+            : `Scan DotoCard — ouverture du dossier ${label}`
+        );
+        invalidatePatientMedical(qc, ev.patient_id);
         nav(`/patient/${ev.patient_id}`);
         window.setTimeout(() => setToast(""), 4200);
       }
     },
-    [nav, setToast, bumpUnread, setPendingAccessId, qc]
+    [nav, setToast, bumpUnread, setPendingAccessId, qc, kickFromPatientIfOpen]
   );
 
   const { status: sseStatus } = useHubSSE(!!user, onSse);
@@ -110,7 +223,7 @@ function Layout({ children }: { children: React.ReactNode }) {
     { to: "/", label: "Accueil", icon: Home, end: true },
     { to: "/recherche", label: "Recherche patient", icon: Search },
     ...(canSeeAgenda(role) ? [{ to: "/rdv", label: "Rendez-vous", icon: Calendar }] : []),
-    ...(canSeeDodoCards(role) ? [{ to: "/dodocards", label: "DodoCards", icon: CreditCard }] : []),
+    ...(canSeeDodoCards(role) ? [{ to: "/dotocards", label: "DotoCards", icon: CreditCard }] : []),
     { to: "/parametres", label: "Paramètres", icon: UserRound },
   ];
 
@@ -191,7 +304,9 @@ function Layout({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </div>
-        <div className="content page-enter">{children}</div>
+        <div className="content page-enter">
+          <Outlet />
+        </div>
       </div>
       <nav className="mobile-nav" aria-label="Navigation principale">
         {links.map((l) => {
@@ -213,7 +328,8 @@ function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Protected({ children }: { children: React.ReactNode }) {
+/** Layout unique : SSE reste connecté en naviguant (Accueil → Patient, etc.). */
+function ProtectedLayout() {
   const { user, loading } = useAuth();
   if (loading)
     return (
@@ -223,7 +339,7 @@ function Protected({ children }: { children: React.ReactNode }) {
       </div>
     );
   if (!user) return <Navigate to="/login" replace />;
-  return <Layout>{children}</Layout>;
+  return <Layout />;
 }
 
 export default function App() {
@@ -327,17 +443,20 @@ export default function App() {
     <>
       <Routes>
         <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
-        <Route path="/" element={<Protected><Accueil /></Protected>} />
-        <Route path="/recherche" element={<Protected><Recherche /></Protected>} />
-        <Route path="/rdv" element={<Protected><RendezVous /></Protected>} />
-        <Route path="/patients/nouveau" element={<Protected><NouveauPatient /></Protected>} />
-        <Route path="/pharma" element={<Protected><PharmaFile /></Protected>} />
-        <Route path="/labo" element={<Protected><LaboFile /></Protected>} />
-        <Route path="/tournee" element={<Protected><Tournee /></Protected>} />
-        <Route path="/dodocards" element={<Protected><DodoCards /></Protected>} />
-        <Route path="/patient/:id" element={<Protected><Patient /></Protected>} />
-        <Route path="/profil" element={<Protected><Profil /></Protected>} />
-        <Route path="/parametres" element={<Protected><Profil /></Protected>} />
+        <Route element={<ProtectedLayout />}>
+          <Route path="/" element={<Accueil />} />
+          <Route path="/recherche" element={<Recherche />} />
+          <Route path="/rdv" element={<RendezVous />} />
+          <Route path="/patients/nouveau" element={<NouveauPatient />} />
+          <Route path="/pharma" element={<PharmaFile />} />
+          <Route path="/labo" element={<LaboFile />} />
+          <Route path="/tournee" element={<Tournee />} />
+          <Route path="/dotocards" element={<DodoCards />} />
+          <Route path="/dodocards" element={<Navigate to="/dotocards" replace />} />
+          <Route path="/patient/:id" element={<Patient />} />
+          <Route path="/profil" element={<Profil />} />
+          <Route path="/parametres" element={<Profil />} />
+        </Route>
         <Route path="*" element={<Navigate to={user ? "/" : "/login"} replace />} />
       </Routes>
       <Toast message={toast} onClose={() => setToast("")} />

@@ -69,7 +69,7 @@ export default function PharmaFile() {
   return (
     <div className="page-enter">
       <div className="row" style={{ justifyContent: "space-between", marginBottom: 16 }}>
-        <div>
+        <header className="page-head" style={{ marginBottom: 0 }}>
           <h1 style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Pill size={22} /> Dispenser une ordonnance
           </h1>
@@ -77,7 +77,7 @@ export default function PharmaFile() {
             L’ordonnance est prescrite par le médecin et valable dans toute pharmacie —
             identifiez le patient (NPI / nom), puis dispensez.
           </p>
-        </div>
+        </header>
         {patientId ? (
           <button className="btn ghost sm" type="button" onClick={() => refetch()}>
             Actualiser
@@ -85,8 +85,8 @@ export default function PharmaFile() {
         ) : null}
       </div>
 
-      <div className="card" style={{ marginBottom: 16, maxWidth: 480 }}>
-        <label className="small muted" style={{ display: "block", marginBottom: 6 }}>
+      <div className="panel" style={{ marginBottom: 16, maxWidth: 480 }}>
+        <label className="label" style={{ marginBottom: 6 }}>
           Patient au comptoir
         </label>
         <PatientSelectSearch
@@ -101,7 +101,7 @@ export default function PharmaFile() {
       ) : isLoading ? (
         <div className="skel" style={{ height: 140 }} />
       ) : isError ? (
-        <div className="card">
+        <div className="panel">
           <p className="muted">
             {(error as any)?.data?.detail || (error as Error)?.message || "Chargement impossible."}
           </p>
@@ -114,9 +114,9 @@ export default function PharmaFile() {
           text={`Aucune ordonnance active ou dispensée pour ${patientLabel || "ce patient"}.`}
         />
       ) : (
-        <div className="grid" style={{ gap: 10 }}>
+        <div className="list-stack">
           {items.map((o: any) => (
-            <div className="card" key={o.id}>
+            <div className="list-item" key={o.id} style={{ flexDirection: "column", alignItems: "stretch" }}>
               <div className="row" style={{ justifyContent: "space-between", gap: 12 }}>
                 <div>
                   <strong>{o.patient_nom || patientLabel || `Patient #${o.patient}`}</strong>

@@ -30,52 +30,48 @@ export default function Tournee() {
 
   return (
     <div className="page-enter">
-      <div className="row" style={{ justifyContent: "space-between", marginBottom: 16 }}>
-        <div>
-          <h1 style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <ClipboardList size={22} /> Tournée du jour
-          </h1>
-          <p className="muted small">
-            {todayLabel} — saisie des constantes sur le dossier patient
-          </p>
-        </div>
-      </div>
+      <header className="page-head">
+        <h1 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <ClipboardList size={22} /> Tournée du jour
+        </h1>
+        <p className="muted small">
+          {todayLabel} — saisie des constantes sur le dossier patient
+        </p>
+      </header>
 
       {isLoading ? (
         <div className="skel" style={{ height: 120 }} />
       ) : items.length === 0 ? (
         <Empty text="Aucun patient prévu aujourd’hui" />
       ) : (
-        <div className="grid" style={{ gap: 10 }}>
+        <div className="list-stack">
           {items.map((a: any) => (
-            <div className="card" key={a.id}>
-              <div className="row" style={{ justifyContent: "space-between", gap: 12 }}>
-                <div className="row" style={{ gap: 12, alignItems: "flex-start", flex: 1 }}>
-                  <Avatar
-                    src={a.patient_photo_url}
-                    name={a.patient_name || `Patient #${a.patient}`}
-                    size={40}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="row" style={{ gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                      <strong style={{ fontVariantNumeric: "tabular-nums" }}>
-                        {formatHeure(a.debut)}
-                      </strong>
-                      <span>{a.patient_name || `Patient #${a.patient}`}</span>
-                      <span className="pill blue">{a.statut_label || a.statut}</span>
-                    </div>
-                    <p className="small muted" style={{ marginTop: 6 }}>
-                      {a.motif || "Sans motif"}
-                      {a.patient_npi ? ` · ${a.patient_npi}` : ""}
-                    </p>
+            <div className="list-item" key={a.id} style={{ flexWrap: "wrap" }}>
+              <div className="row" style={{ gap: 12, alignItems: "flex-start", flex: 1 }}>
+                <Avatar
+                  src={a.patient_photo_url}
+                  name={a.patient_name || `Patient #${a.patient}`}
+                  size={40}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="row" style={{ gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    <strong style={{ fontVariantNumeric: "tabular-nums" }}>
+                      {formatHeure(a.debut)}
+                    </strong>
+                    <span>{a.patient_name || `Patient #${a.patient}`}</span>
+                    <span className="pill blue">{a.statut_label || a.statut}</span>
                   </div>
+                  <p className="small muted" style={{ marginTop: 6 }}>
+                    {a.motif || "Sans motif"}
+                    {a.patient_npi ? ` · ${a.patient_npi}` : ""}
+                  </p>
                 </div>
-                {a.patient ? (
-                  <Link className="btn" to={`/patient/${a.patient}`}>
-                    Ouvrir dossier
-                  </Link>
-                ) : null}
               </div>
+              {a.patient ? (
+                <Link className="btn" to={`/patient/${a.patient}`}>
+                  Ouvrir dossier
+                </Link>
+              ) : null}
             </div>
           ))}
         </div>

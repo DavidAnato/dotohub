@@ -110,14 +110,14 @@ export default function RendezVous() {
   return (
     <div>
       <div className="row" style={{ justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
-        <div>
+        <header className="page-head" style={{ marginBottom: 0 }}>
           <h1 style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Calendar size={22} /> Agenda rendez-vous
           </h1>
           <p className="muted small">
             Réception : médecin (à confirmer) ou guichet sans médecin · Médecin : confirme ses RDV
           </p>
-        </div>
+        </header>
         {canWrite ? (
           <button className="btn" type="button" onClick={() => setOpen(true)}>
             <Plus size={16} style={{ marginRight: 6 }} />
@@ -133,64 +133,66 @@ export default function RendezVous() {
       ) : items.length === 0 ? (
         <Empty text="Aucun rendez-vous." />
       ) : (
-        <div className="grid" style={{ gap: 10 }}>
+        <div className="list-stack">
           {items.map((a: any) => {
             const pending = a.statut === "planifie" && a.professionnel;
             const mine =
               isMedecin && (a.professionnel === user?.id || a.professionnel_id === user?.id);
             return (
-              <div className="card" key={a.id}>
-                <div className="row" style={{ justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                  <strong>{a.motif || "RDV"}</strong>
-                  <span className={`pill ${pending ? "amber" : a.statut === "confirme" ? "green" : "blue"}`}>
-                    {pending ? "À confirmer" : a.statut_label || a.statut}
-                  </span>
-                </div>
-                <div className="small muted row" style={{ gap: 8, alignItems: "center", marginTop: 6 }}>
-                  <Avatar src={a.patient_photo_url} name={a.patient_name} size={28} />
-                  <span>
-                    {a.debut ? new Date(a.debut).toLocaleString("fr-FR") : "—"} · {a.patient_name}
-                    {a.patient_npi ? ` (${a.patient_npi})` : ""}
-                    {a.professionnel_nom ? ` · Dr ${a.professionnel_nom}` : " · Réception"}
-                    {a.structure_nom ? ` · ${a.structure_nom}` : ""}
-                  </span>
-                </div>
-                {(mine || user?.role === "admin") && pending ? (
-                  <div className="row" style={{ gap: 8, marginTop: 12 }}>
-                    <button
-                      className="btn sm"
-                      type="button"
-                      disabled={confirmerMut.isPending}
-                      onClick={() => confirmerMut.mutate(a.id)}
-                    >
-                      Confirmer
-                    </button>
-                    <button
-                      className="btn ghost sm"
-                      type="button"
-                      disabled={annulerMut.isPending}
-                      onClick={() => askAnnuler(a.id, "Refuser ce rendez-vous ?")}
-                    >
-                      Refuser
-                    </button>
+              <div className="list-item" key={a.id} style={{ flexWrap: "wrap", alignItems: "flex-start" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="row" style={{ justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                    <strong>{a.motif || "RDV"}</strong>
+                    <span className={`pill ${pending ? "amber" : a.statut === "confirme" ? "green" : "blue"}`}>
+                      {pending ? "À confirmer" : a.statut_label || a.statut}
+                    </span>
                   </div>
-                ) : null}
-                {canWrite &&
-                !pending &&
-                a.statut !== "annule" &&
-                a.statut !== "termine" &&
-                a.statut !== "absent" ? (
-                  <div className="row" style={{ gap: 8, marginTop: 12 }}>
-                    <button
-                      className="btn ghost sm"
-                      type="button"
-                      disabled={annulerMut.isPending}
-                      onClick={() => askAnnuler(a.id)}
-                    >
-                      Annuler le RDV
-                    </button>
+                  <div className="small muted row" style={{ gap: 8, alignItems: "center", marginTop: 6 }}>
+                    <Avatar src={a.patient_photo_url} name={a.patient_name} size={28} />
+                    <span>
+                      {a.debut ? new Date(a.debut).toLocaleString("fr-FR") : "—"} · {a.patient_name}
+                      {a.patient_npi ? ` (${a.patient_npi})` : ""}
+                      {a.professionnel_nom ? ` · Dr ${a.professionnel_nom}` : " · Réception"}
+                      {a.structure_nom ? ` · ${a.structure_nom}` : ""}
+                    </span>
                   </div>
-                ) : null}
+                  {(mine || user?.role === "admin") && pending ? (
+                    <div className="row" style={{ gap: 8, marginTop: 12 }}>
+                      <button
+                        className="btn sm"
+                        type="button"
+                        disabled={confirmerMut.isPending}
+                        onClick={() => confirmerMut.mutate(a.id)}
+                      >
+                        Confirmer
+                      </button>
+                      <button
+                        className="btn ghost sm"
+                        type="button"
+                        disabled={annulerMut.isPending}
+                        onClick={() => askAnnuler(a.id, "Refuser ce rendez-vous ?")}
+                      >
+                        Refuser
+                      </button>
+                    </div>
+                  ) : null}
+                  {canWrite &&
+                  !pending &&
+                  a.statut !== "annule" &&
+                  a.statut !== "termine" &&
+                  a.statut !== "absent" ? (
+                    <div className="row" style={{ gap: 8, marginTop: 12 }}>
+                      <button
+                        className="btn ghost sm"
+                        type="button"
+                        disabled={annulerMut.isPending}
+                        onClick={() => askAnnuler(a.id)}
+                      >
+                        Annuler le RDV
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             );
           })}
