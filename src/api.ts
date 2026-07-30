@@ -1,5 +1,5 @@
-# En dev : URLs relatives → proxy Vite (évite CORS hotspot/LAN).
-# Prod / preprod : VITE_API_URL ou défaut Render.
+// En dev : URLs relatives → proxy Vite (évite CORS hotspot/LAN).
+// Prod / preprod : VITE_API_URL ou défaut Render.
 const API_URL =
   import.meta.env.VITE_API_URL ??
   (import.meta.env.DEV ? "" : "https://doto-backend-71tk.onrender.com");

@@ -1,4 +1,4 @@
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, type Query } from "@tanstack/react-query";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 
 const STALE_MS = 5 * 60 * 1000;
@@ -32,7 +32,7 @@ export const persistOptions = {
   maxAge: GC_MS,
   buster: "v2-consent-fresh",
   dehydrateOptions: {
-    shouldDehydrateQuery: (query) => {
+    shouldDehydrateQuery: (query: Query) => {
       const key = query.queryKey?.[0];
       // Ne pas persister les dossiers (consentement critique).
       if (key === "patient") return false;
