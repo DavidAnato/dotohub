@@ -2,8 +2,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useAppStore } from "../store/appStore";
+import { notificationPath } from "../notifRoutes";
 
 export function NotificationBell() {
   const unread = useAppStore((s) => s.unread);
@@ -12,6 +14,7 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
+  const nav = useNavigate();
 
   const { data } = useQuery({
     queryKey: ["notifications"],
@@ -123,8 +126,9 @@ export function NotificationBell() {
                     setUnread(Math.max(0, unread - 1));
                     qc.invalidateQueries({ queryKey: ["notifications"] });
                   }
-                  setToast(n.title);
+                  const path = notificationPath(n, "hub");
                   setOpen(false);
+                  nav(path);
                 }}
                 style={{
                   display: "block",

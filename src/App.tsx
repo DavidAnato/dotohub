@@ -8,11 +8,13 @@ import { OfflineBanner, Toast } from "./components";
 import { NotificationBell } from "./components/NotificationBell";
 import { Avatar } from "./components/Avatar";
 import { PinSessionGate } from "./components/PinSessionGate";
+import { HospitalAttachGate } from "./components/HospitalAttachGate";
 import { useHubSSE, type HubSseEvent } from "./hooks";
 import { useAppStore } from "./store/appStore";
 import { api } from "./api";
 import { canSeeAgenda, canSeeDodoCards } from "./roleNav";
 import { qk } from "./queries/keys";
+import { needsHospitalAttach } from "./constants";
 import Login from "./pages/Login";
 import Accueil from "./pages/Accueil";
 import Recherche from "./pages/Recherche";
@@ -67,18 +69,22 @@ function invalidateFromHubEvent(
   }
 
   if (
+    ev.type === "patient_list" ||
     ev.type === "dossier_updated" ||
     ev.type === "ordonnance" ||
     ev.type === "examen" ||
     ev.notif_type === "ordonnance" ||
     ev.notif_type === "examen" ||
     ev.notif_type === "dossier_updated" ||
+    ev.notif_type === "bon_examen" ||
     section === "ordonnances" ||
     section === "examens" ||
     section === "dossier"
   ) {
     invalidatePatientMedical(qc, pid);
     void qc.invalidateQueries({ queryKey: qk.hubDashboard });
+    void qc.invalidateQueries({ queryKey: ["exam-orders"] });
+    void qc.invalidateQueries({ queryKey: ["labo-examens"] });
   } else if (pid != null) {
     invalidatePatientMedical(qc, pid);
   }
@@ -438,6 +444,7 @@ export default function App() {
   };
 
   const showPinGate = !!user && (needsPinSetup || sessionLocked);
+  const showHospitalGate = !!user && !showPinGate && needsHospitalAttach(user);
 
   return (
     <>
@@ -467,6 +474,9 @@ export default function App() {
           busy={pinBusy}
           onSubmit={needsPinSetup ? handleSetupPin : handleUnlock}
         />
+      ) : null}
+      {showHospitalGate ? (
+        <HospitalAttachGate onDone={(u) => setUser(u)} />
       ) : null}
     </>
   );

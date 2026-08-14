@@ -3,6 +3,7 @@ import { Html5Qrcode } from "html5-qrcode";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Camera, ShieldAlert } from "lucide-react";
 import { api } from "../api";
+import { cacheRead, loadRead } from "../offlineQueue";
 import { Avatar } from "../components/Avatar";
 
 export default function Recherche() {
@@ -26,15 +27,24 @@ export default function Recherche() {
     const nomVal = override?.nom ?? nom;
     setMsg("");
     setBusy(true);
+    const query = npiVal
+      ? `npi=${encodeURIComponent(npiVal)}`
+      : `nom=${encodeURIComponent(nomVal)}`;
     try {
-      const query = npiVal
-        ? `npi=${encodeURIComponent(npiVal)}`
-        : `nom=${encodeURIComponent(nomVal)}`;
       const data = await api.searchPatients(query);
+      cacheRead("search:" + query, data);
+      cacheRead("search:last", data);
       setResults(data);
       if (!data.length) setMsg("Aucun patient trouvé.");
     } catch (e: any) {
-      setMsg(e?.data?.detail || "Erreur de recherche.");
+      const cached =
+        loadRead<any[]>("search:" + query) || loadRead<any[]>("search:last") || [];
+      if (cached.length) {
+        setResults(cached);
+        setMsg("Hors ligne — liste patients en cache.");
+      } else {
+        setMsg(e?.data?.detail || "Erreur de recherche.");
+      }
     } finally {
       setBusy(false);
     }

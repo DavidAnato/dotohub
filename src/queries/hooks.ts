@@ -3,6 +3,7 @@ import { api } from "../api";
 import { useAppStore } from "../store/appStore";
 import { qk } from "./keys";
 
+const STALE_MS = 5 * 60 * 1000;
 const DASH_CACHE = "dotohub_dash_cache";
 
 export function useHubDashboard() {
@@ -25,27 +26,32 @@ export function useHubDashboard() {
         throw new Error("Tableau de bord indisponible");
       }
     },
+    refetchInterval: online ? 15_000 : false,
+    refetchOnWindowFocus: true,
   });
 }
 
 export function usePatient(id: string | number | undefined) {
+  const online = useAppStore((s) => s.online);
   return useQuery({
     queryKey: qk.patient(id ?? "none"),
     queryFn: () => api.patient(id!),
     enabled: !!id,
-    // Consentement : jamais de dossier « granted » périmé (cache 5 min / persist).
-    staleTime: 0,
-    gcTime: 30_000,
-    refetchOnMount: "always",
-    networkMode: "online",
+    staleTime: online ? 0 : 24 * 60 * 60 * 1000,
+    gcTime: 24 * 60 * 60 * 1000,
+    refetchOnMount: online ? "always" : false,
+    networkMode: "offlineFirst",
   });
 }
 
 export function useConsultations(patientId: number | undefined) {
+  const online = useAppStore((s) => s.online);
   return useQuery({
     queryKey: qk.consultations(patientId ?? "none"),
     queryFn: () => api.consultations(patientId!),
     enabled: !!patientId,
+    staleTime: online ? STALE_MS : 24 * 60 * 60 * 1000,
+    networkMode: "offlineFirst",
   });
 }
 
@@ -54,6 +60,7 @@ export function useOrdonnances(patientId: number | undefined) {
     queryKey: qk.ordonnances(patientId ?? "none"),
     queryFn: () => api.ordonnances(patientId!),
     enabled: !!patientId,
+    networkMode: "offlineFirst",
   });
 }
 
@@ -62,6 +69,7 @@ export function useExamens(patientId: number | undefined) {
     queryKey: qk.examens(patientId ?? "none"),
     queryFn: () => api.examens(patientId!),
     enabled: !!patientId,
+    networkMode: "offlineFirst",
   });
 }
 
@@ -70,6 +78,7 @@ export function useConstantes(patientId: number | undefined) {
     queryKey: qk.constantes(patientId ?? "none"),
     queryFn: () => api.constantes(patientId!),
     enabled: !!patientId,
+    networkMode: "offlineFirst",
   });
 }
 
@@ -125,7 +134,11 @@ export function useCreateConsultation(patientId: number) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: unknown) => api.createConsultation(body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.consultations(patientId) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.consultations(patientId) });
+      qc.invalidateQueries({ queryKey: qk.hubDashboard });
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+    },
   });
 }
 

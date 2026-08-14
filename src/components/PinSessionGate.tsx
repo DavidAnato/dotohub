@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Fingerprint, Lock, ShieldAlert } from "lucide-react";
 
-const PIN_LEN = 5;
+import { PIN_LEN } from "../constants";
 
 type PinBoxesProps = {
   value: string;
@@ -175,7 +175,7 @@ export function PinSessionGate({
           {subtitle ||
             (mode === "setup"
               ? step === "confirm"
-                ? "Confirmez votre code à 5 chiffres"
+                ? "Confirmez votre code à 4 chiffres"
                 : "Obligatoire pour sécuriser votre session Hub"
               : "Saisissez votre PIN pour continuer")}
         </p>
@@ -186,7 +186,7 @@ export function PinSessionGate({
           error={!!displayErr && !busy}
           disabled={busy}
           loading={!!busy}
-          label="5 chiffres"
+          label="4 chiffres"
         />
         {displayErr && !busy ? <p className="pin-error">{displayErr}</p> : null}
         {busy ? <p className="pin-busy-hint muted">Vérification en cours…</p> : null}

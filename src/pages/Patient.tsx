@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Calendar, FileText, FlaskConical, Plus, TriangleAlert, X } from "lucide-react";
 import { api } from "../api";
 import { useAuth } from "../auth";
@@ -24,6 +24,19 @@ import {
   useCreateConstante,
 } from "../queries/hooks";
 import { useQuery } from "@tanstack/react-query";
+import {
+  BON_STATUTS,
+  emptyMedLine,
+  formatDateFR,
+  MEDICAMENT_FORMES,
+  MEDICAMENT_MOMENTS,
+  nowDateISO,
+  nowISO,
+  PRISE_EN_CHARGE,
+  SPECIALITES,
+  summarizeMed,
+  type MedLine,
+} from "../constants";
 
 type TabKey = "historique" | "ordonnances" | "examens" | "constantes" | "assurance";
 
@@ -58,6 +71,7 @@ export default function Patient() {
   const verifyAnip = useVerifyAnip(id!);
   const setToast = useAppStore((s) => s.setToast);
   const [tab, setTab] = useState<TabKey>("historique");
+  const [params] = useSearchParams();
   const [requesting, setRequesting] = useState(false);
   const [showRdv, setShowRdv] = useState(false);
   const [rdvBusy, setRdvBusy] = useState(false);
@@ -71,6 +85,11 @@ export default function Patient() {
   const tabs = ROLE_TABS[user?.role || "medecin"] || ["historique"];
   const canWriteRdv = RDV_WRITE_ROLES.has(user?.role || "");
   const isReception = user?.role === "receptionniste";
+
+  useEffect(() => {
+    const t = params.get("tab") as TabKey | null;
+    if (t && (tabs as string[]).includes(t)) setTab(t);
+  }, [params, tabs]);
 
   const { data: medecinsRdv = [] } = useQuery({
     queryKey: ["rdv-medecins"],
@@ -426,17 +445,56 @@ function Historique({ patientId }: { patientId: number }) {
   const items = (raw?.results || raw || []) as any[];
   const createMut = useCreateConsultation(patientId);
   const annulerMut = useAnnulerConsultation(patientId);
-  const [form, setForm] = useState({ date: "", type: "consultation", diagnostic: "", notes: "" });
+  const structures = ((user as any)?.structures || []) as { id: number; nom: string }[];
+  const principaleId = (user as any)?.structure_principale as number | undefined;
+  const defaultSpec = (user as any)?.specialite || "Médecine générale";
+  const specOptions = SPECIALITES.includes(defaultSpec)
+    ? SPECIALITES
+    : [defaultSpec, ...SPECIALITES];
+  const [form, setForm] = useState({
+    type: "consultation",
+    specialite: defaultSpec,
+    structure: principaleId ? String(principaleId) : structures[0] ? String(structures[0].id) : "",
+    motif: "",
+    diagnostic: "",
+    notes: "",
+  });
+  const [preview, setPreview] = useState(false);
 
   const canWrite = CLINICAL_WRITE_ROLES.has(user?.role || "");
 
+  const payload = () => ({
+    patient: patientId,
+    date: nowISO(),
+    type: form.type,
+    specialite: form.specialite,
+    structure: form.structure ? Number(form.structure) : undefined,
+    motif: form.motif,
+    diagnostic: form.diagnostic,
+    notes: form.notes,
+    extra: {},
+  });
+
   const create = () => {
-    createMut.mutate(
-      { patient: patientId, ...form, date: form.date || new Date().toISOString() },
-      {
-        onSuccess: () => setForm({ date: "", type: "consultation", diagnostic: "", notes: "" }),
-      }
-    );
+    if (!form.structure) {
+      setToast("Choisissez la structure de santé.");
+      return;
+    }
+    createMut.mutate(payload(), {
+      onSuccess: () => {
+        setForm({
+          type: "consultation",
+          specialite: defaultSpec,
+          structure: principaleId ? String(principaleId) : form.structure,
+          motif: "",
+          diagnostic: "",
+          notes: "",
+        });
+        setPreview(false);
+        setToast("Consultation enregistrée");
+      },
+      onError: (e: any) => setToast(e?.data?.detail || e?.message || "Échec"),
+    });
   };
 
   const confirmAnnuler = (id: number) => {
@@ -452,14 +510,30 @@ function Historique({ patientId }: { patientId: number }) {
       {items.length === 0 && <Empty text="Aucune consultation enregistrée." />}
       {items.map((c) => (
         <div className="card" key={c.id}>
-          <div className="row" style={{ justifyContent: "space-between" }}>
-            <strong>{c.diagnostic || "Consultation"}</strong>
+          <div className="row" style={{ justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+            <strong>{c.titre || `${c.specialite || "Consultation"} — ${formatDateFR(c.date)}`}</strong>
             <span className="pill blue">{c.type_label}</span>
           </div>
           <div className="small muted" style={{ marginTop: 4 }}>
-            {new Date(c.date).toLocaleDateString("fr-FR")}
+            {formatDateFR(c.date)}
+            {c.appointment_id ? " · Liée à un RDV" : " · Sans RDV (walk-in)"}
           </div>
           <div style={{ marginTop: 6, lineHeight: 1.45 }}>
+            {c.specialite ? (
+              <div>
+                <strong>Spécialité :</strong> {c.specialite}
+              </div>
+            ) : null}
+            {c.motif ? (
+              <div>
+                <strong>Motif :</strong> {c.motif}
+              </div>
+            ) : null}
+            {c.diagnostic ? (
+              <div>
+                <strong>Diagnostic :</strong> {c.diagnostic}
+              </div>
+            ) : null}
             <div>
               <strong>Médecin :</strong> {c.medecin_nom || "Non renseigné"}
             </div>
@@ -488,22 +562,99 @@ function Historique({ patientId }: { patientId: number }) {
       {canWrite && (
         <div className="card">
           <h3 style={{ marginBottom: 12 }}>Nouvelle consultation</h3>
-          <div className="grid cols-2">
-            <input className="input" placeholder="Diagnostic" value={form.diagnostic}
-              onChange={(e) => setForm({ ...form, diagnostic: e.target.value })} />
-            <select className="select" value={form.type}
-              onChange={(e) => setForm({ ...form, type: e.target.value })}>
-              <option value="consultation">Consultation</option>
-              <option value="hospitalisation">Hospitalisation</option>
-              <option value="chirurgie">Chirurgie</option>
-              <option value="urgence">Urgence</option>
-            </select>
+          <div className="grid cols-2" style={{ gap: 10 }}>
+            <div className="field">
+              <label className="label">Spécialité / domaine</label>
+              <select
+                className="select"
+                value={form.specialite}
+                onChange={(e) => setForm({ ...form, specialite: e.target.value })}
+              >
+                {specOptions.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="label">Structure de santé *</label>
+              <select
+                className="select"
+                value={form.structure}
+                onChange={(e) => setForm({ ...form, structure: e.target.value })}
+              >
+                <option value="">Choisir…</option>
+                {structures.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nom}
+                    {s.id === principaleId ? " (principal)" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="label">Type de prise en charge</label>
+              <select
+                className="select"
+                value={form.type}
+                onChange={(e) => setForm({ ...form, type: e.target.value })}
+              >
+                {PRISE_EN_CHARGE.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="label">Motif</label>
+              <input
+                className="input"
+                placeholder="Motif de consultation"
+                value={form.motif}
+                onChange={(e) => setForm({ ...form, motif: e.target.value })}
+              />
+            </div>
           </div>
-          <textarea className="textarea" style={{ margin: "12px 0" }} placeholder="Notes"
-            value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-          <button className="btn" onClick={create} disabled={!form.diagnostic}>
-            Enregistrer
-          </button>
+          <div className="field" style={{ marginTop: 10 }}>
+            <label className="label">Diagnostic</label>
+            <input
+              className="input"
+              placeholder="Diagnostic"
+              value={form.diagnostic}
+              onChange={(e) => setForm({ ...form, diagnostic: e.target.value })}
+            />
+          </div>
+          <textarea
+            className="textarea"
+            style={{ margin: "12px 0" }}
+            placeholder="Notes / observations médicales"
+            value={form.notes}
+            onChange={(e) => setForm({ ...form, notes: e.target.value })}
+          />
+          <p className="muted small">Date et heure : {formatDateFR(nowISO())} (automatiques)</p>
+          {preview ? (
+            <div className="card" style={{ marginBottom: 12, background: "var(--surface-2, transparent)" }}>
+              <strong>Récapitulatif</strong>
+              <p className="small" style={{ marginTop: 6, lineHeight: 1.5 }}>
+                {form.specialite} — {user?.full_name || "Médecin"} —{" "}
+                {structures.find((s) => String(s.id) === form.structure)?.nom || "—"} — {formatDateFR(nowISO())}
+                <br />
+                {PRISE_EN_CHARGE.find((t) => t.value === form.type)?.label}
+                {form.motif ? ` · ${form.motif}` : ""}
+                {form.diagnostic ? ` · ${form.diagnostic}` : ""}
+              </p>
+            </div>
+          ) : null}
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn ghost" type="button" onClick={() => setPreview((v) => !v)}>
+              {preview ? "Masquer l'aperçu" : "Aperçu"}
+            </button>
+            <button className="btn" onClick={create} disabled={!form.structure || createMut.isPending}>
+              {createMut.isPending ? "…" : "Enregistrer"}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -520,7 +671,8 @@ function Ordonnances({ patientId, patientName }: { patientId: number; patientNam
   const annulerMut = useAnnulerOrdonnance(patientId);
   const annulerDispenseMut = useAnnulerDispense(patientId);
   const [open, setOpen] = useState(false);
-  const [meds, setMeds] = useState([{ nom: "", dosage: "", frequence: "", duree_jours: 30 }]);
+  const [step, setStep] = useState<"edit" | "preview">("edit");
+  const [meds, setMeds] = useState<MedLine[]>([emptyMedLine()]);
 
   const canWrite = CLINICAL_WRITE_ROLES.has(user?.role || "");
 
@@ -529,11 +681,26 @@ function Ordonnances({ patientId, patientName }: { patientId: number; patientNam
       {
         patient: patientId,
         date: new Date().toISOString().slice(0, 10),
-        medicaments: meds.filter((m) => m.nom),
+        medicaments: meds.filter((m) => m.nom).map((m) => ({
+          nom: m.nom,
+          dosage: m.dosage,
+          forme: m.forme,
+          quantite: m.quantite,
+          unites_par_prise: m.unites_par_prise,
+          frequence_par_jour: m.frequence_par_jour,
+          frequence:
+            m.unites_par_prise && m.frequence_par_jour
+              ? `${m.unites_par_prise} × ${m.frequence_par_jour}`
+              : "",
+          duree_jours: m.duree_jours || null,
+          moment: m.moment,
+          instructions: m.instructions,
+        })),
       },
       {
         onSuccess: () => {
-          setMeds([{ nom: "", dosage: "", frequence: "", duree_jours: 30 }]);
+          setMeds([emptyMedLine()]);
+          setStep("edit");
           setOpen(false);
           setToast("Ordonnance créée");
         },
@@ -595,8 +762,21 @@ function Ordonnances({ patientId, patientName }: { patientId: number; patientNam
           <ul style={{ margin: "10px 0 0 18px" }}>
             {o.medicaments.map((m: any) => (
               <li key={m.id}>
-                <strong>{m.nom}</strong> — {m.dosage} · {m.frequence}
-                {m.duree_jours ? ` · ${m.duree_jours}j` : ""}
+                <strong>{m.nom}</strong>
+                {[
+                  m.dosage,
+                  m.forme,
+                  m.quantite,
+                  m.unites_par_prise && m.frequence_par_jour
+                    ? `${m.unites_par_prise} × ${m.frequence_par_jour}`
+                    : m.frequence,
+                  m.duree_jours ? `${m.duree_jours} j` : "",
+                  MEDICAMENT_MOMENTS.find((x) => x.value === m.moment)?.label,
+                  m.instructions,
+                ]
+                  .filter((x) => x && x !== "—")
+                  .map((x) => ` — ${x}`)
+                  .join("")}
               </li>
             ))}
           </ul>
@@ -658,59 +838,168 @@ function Ordonnances({ patientId, patientName }: { patientId: number; patientNam
               <p className="muted small" style={{ marginBottom: 12 }}>
                 Pour <strong>{patientName || "ce patient"}</strong> — pas besoin de resaisir l&apos;identité.
               </p>
-              {meds.map((m, i) => (
-                <div className="grid cols-4" key={i} style={{ marginBottom: 8 }}>
-                  <input
-                    className="input"
-                    placeholder="Médicament"
-                    value={m.nom}
-                    onChange={(e) => setMeds(meds.map((x, j) => (j === i ? { ...x, nom: e.target.value } : x)))}
-                  />
-                  <input
-                    className="input"
-                    placeholder="Dosage"
-                    value={m.dosage}
-                    onChange={(e) => setMeds(meds.map((x, j) => (j === i ? { ...x, dosage: e.target.value } : x)))}
-                  />
-                  <input
-                    className="input"
-                    placeholder="Fréquence"
-                    value={m.frequence}
-                    onChange={(e) => setMeds(meds.map((x, j) => (j === i ? { ...x, frequence: e.target.value } : x)))}
-                  />
-                  <input
-                    className="input"
-                    type="number"
-                    placeholder="Jours"
-                    value={m.duree_jours}
-                    onChange={(e) =>
-                      setMeds(meds.map((x, j) => (j === i ? { ...x, duree_jours: +e.target.value } : x)))
-                    }
-                  />
+              {step === "preview" ? (
+                <div>
+                  <p className="muted small" style={{ marginBottom: 8 }}>Aperçu avant validation</p>
+                  <ul style={{ margin: "0 0 12px 18px" }}>
+                    {meds.filter((m) => m.nom).map((m, i) => (
+                      <li key={i}>{summarizeMed(m)}</li>
+                    ))}
+                  </ul>
+                  <div className="row" style={{ gap: 8, justifyContent: "flex-end" }}>
+                    <button className="btn ghost" type="button" onClick={() => setStep("edit")}>
+                      Modifier
+                    </button>
+                    <button
+                      className="btn"
+                      type="button"
+                      onClick={create}
+                      disabled={!meds.some((m) => m.nom) || createMut.isPending}
+                    >
+                      {createMut.isPending ? "…" : "Valider l'ordonnance"}
+                    </button>
+                  </div>
                 </div>
-              ))}
-              <div className="row" style={{ gap: 8, marginTop: 8, justifyContent: "space-between" }}>
-                <button
-                  className="btn ghost sm"
-                  type="button"
-                  onClick={() => setMeds([...meds, { nom: "", dosage: "", frequence: "", duree_jours: 30 }])}
-                >
-                  + Médicament
-                </button>
-                <div className="row" style={{ gap: 8 }}>
-                  <button className="btn ghost" type="button" onClick={() => setOpen(false)}>
-                    Annuler
-                  </button>
-                  <button
-                    className="btn"
-                    type="button"
-                    onClick={create}
-                    disabled={!meds.some((m) => m.nom) || createMut.isPending}
-                  >
-                    {createMut.isPending ? "…" : "Créer"}
-                  </button>
-                </div>
-              </div>
+              ) : (
+                <>
+                  {meds.map((m, i) => (
+                    <div
+                      key={i}
+                      className="card"
+                      style={{ marginBottom: 10, padding: 12 }}
+                    >
+                      <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
+                        <strong className="small">Médicament {i + 1}</strong>
+                        {meds.length > 1 ? (
+                          <button
+                            type="button"
+                            className="btn ghost sm"
+                            onClick={() => setMeds(meds.filter((_, j) => j !== i))}
+                          >
+                            Retirer
+                          </button>
+                        ) : null}
+                      </div>
+                      <div className="grid cols-2" style={{ gap: 8 }}>
+                        <input
+                          className="input"
+                          placeholder="Nom"
+                          value={m.nom}
+                          onChange={(e) =>
+                            setMeds(meds.map((x, j) => (j === i ? { ...x, nom: e.target.value } : x)))
+                          }
+                        />
+                        <input
+                          className="input"
+                          placeholder="Dosage / concentration (ex. 1000 mg)"
+                          value={m.dosage}
+                          onChange={(e) =>
+                            setMeds(meds.map((x, j) => (j === i ? { ...x, dosage: e.target.value } : x)))
+                          }
+                        />
+                        <select
+                          className="select"
+                          value={m.forme}
+                          onChange={(e) =>
+                            setMeds(meds.map((x, j) => (j === i ? { ...x, forme: e.target.value } : x)))
+                          }
+                        >
+                          {MEDICAMENT_FORMES.map((f) => (
+                            <option key={f} value={f}>
+                              {f}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          className="input"
+                          placeholder="Quantité à délivrer (ex. 1 boîte)"
+                          value={m.quantite}
+                          onChange={(e) =>
+                            setMeds(meds.map((x, j) => (j === i ? { ...x, quantite: e.target.value } : x)))
+                          }
+                        />
+                        <input
+                          className="input"
+                          placeholder="Unités par prise (ex. 2 comprimés)"
+                          value={m.unites_par_prise}
+                          onChange={(e) =>
+                            setMeds(
+                              meds.map((x, j) => (j === i ? { ...x, unites_par_prise: e.target.value } : x))
+                            )
+                          }
+                        />
+                        <input
+                          className="input"
+                          placeholder="Fréquence (ex. 3/jour)"
+                          value={m.frequence_par_jour}
+                          onChange={(e) =>
+                            setMeds(
+                              meds.map((x, j) => (j === i ? { ...x, frequence_par_jour: e.target.value } : x))
+                            )
+                          }
+                        />
+                        <input
+                          className="input"
+                          type="number"
+                          placeholder="Durée (jours)"
+                          value={m.duree_jours}
+                          onChange={(e) =>
+                            setMeds(
+                              meds.map((x, j) =>
+                                j === i ? { ...x, duree_jours: e.target.value ? +e.target.value : "" } : x
+                              )
+                            )
+                          }
+                        />
+                        <select
+                          className="select"
+                          value={m.moment}
+                          onChange={(e) =>
+                            setMeds(meds.map((x, j) => (j === i ? { ...x, moment: e.target.value } : x)))
+                          }
+                        >
+                          {MEDICAMENT_MOMENTS.map((mo) => (
+                            <option key={mo.value} value={mo.value}>
+                              {mo.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <input
+                        className="input"
+                        style={{ marginTop: 8 }}
+                        placeholder="Instructions complémentaires (optionnel)"
+                        value={m.instructions}
+                        onChange={(e) =>
+                          setMeds(meds.map((x, j) => (j === i ? { ...x, instructions: e.target.value } : x)))
+                        }
+                      />
+                    </div>
+                  ))}
+                  <div className="row" style={{ gap: 8, marginTop: 8, justifyContent: "space-between" }}>
+                    <button
+                      className="btn ghost sm"
+                      type="button"
+                      onClick={() => setMeds([...meds, emptyMedLine()])}
+                    >
+                      + Ajouter un médicament
+                    </button>
+                    <div className="row" style={{ gap: 8 }}>
+                      <button className="btn ghost" type="button" onClick={() => setOpen(false)}>
+                        Annuler
+                      </button>
+                      <button
+                        className="btn"
+                        type="button"
+                        onClick={() => setStep("preview")}
+                        disabled={!meds.some((m) => m.nom)}
+                      >
+                        Aperçu
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -725,7 +1014,24 @@ function Examens({ patientId, patientName }: { patientId: number; patientName?: 
   const { data: raw, refetch } = useExamens(patientId);
   const items = (raw?.results || raw || []) as any[];
   const annulerMut = useAnnulerExamen(patientId);
+  const { data: bonsRaw, refetch: refetchBons } = useQuery({
+    queryKey: ["exam-orders", patientId],
+    queryFn: () => api.examOrders(`patient=${patientId}`),
+  });
+  const { data: catalog = [] } = useQuery({
+    queryKey: ["exam-catalog"],
+    queryFn: () => api.examCatalog(),
+  });
+  const { data: hosp } = useQuery({
+    queryKey: ["hospitals-labo"],
+    queryFn: () => api.hospitals(),
+  });
+  const labs = ((hosp?.structures || []) as any[]).filter(
+    (s) => s.type === "laboratoire" || (s.nom || "").toLowerCase().includes("labo")
+  );
+  const bons = (bonsRaw?.results || bonsRaw || []) as any[];
   const [open, setOpen] = useState(false);
+  const [prescribe, setPrescribe] = useState(false);
   const [form, setForm] = useState({
     type_examen: "",
     categorie: "analyses",
@@ -735,8 +1041,12 @@ function Examens({ patientId, patientName }: { patientId: number; patientName?: 
   });
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const [selectedExams, setSelectedExams] = useState<string[]>([]);
+  const [bonForm, setBonForm] = useState({ motif: "", observations: "", laboratoire: "", laboratoire_nom: "" });
 
   const canUpload = user?.role === "laborantin" || user?.role === "admin";
+  const canPrescribe = user?.role === "medecin" || user?.role === "admin";
+  const catalogList = Array.isArray(catalog) ? catalog : [];
 
   const confirmAnnuler = (id: number) => {
     if (!window.confirm("Annuler cet examen ? Il disparaîtra de la liste.")) return;
@@ -755,7 +1065,7 @@ function Examens({ patientId, patientName }: { patientId: number; patientName?: 
       await api.createExamenMultipart(
         {
           patient: String(patientId),
-          date: new Date().toISOString().slice(0, 10),
+          date: nowDateISO(),
           type_examen: form.type_examen,
           categorie: form.categorie,
           statut: form.statut,
@@ -782,17 +1092,95 @@ function Examens({ patientId, patientName }: { patientId: number; patientName?: 
     }
   };
 
+  const submitBon = async () => {
+    if (!selectedExams.length) {
+      setToast("Sélectionnez au moins un examen.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const lignes = selectedExams.map((code) => {
+        const item = catalogList.find((c: any) => c.code === code || c.label === code);
+        return {
+          code: item?.code || "",
+          type_examen: item?.label || code,
+          categorie: item?.categorie || "analyses",
+        };
+      });
+      await api.createExamOrder({
+        patient: patientId,
+        motif: bonForm.motif,
+        observations: bonForm.observations,
+        laboratoire: bonForm.laboratoire ? Number(bonForm.laboratoire) : null,
+        laboratoire_nom: bonForm.laboratoire_nom,
+        lignes,
+      });
+      setPrescribe(false);
+      setSelectedExams([]);
+      setBonForm({ motif: "", observations: "", laboratoire: "", laboratoire_nom: "" });
+      setToast("Bon d'examen prescrit");
+      refetchBons();
+    } catch (e: any) {
+      setToast(e?.data?.detail || e?.message || "Échec");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleExam = (code: string) => {
+    setSelectedExams((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
+  };
+
   return (
     <div className="grid" style={{ gap: 12 }}>
-      {canUpload ? (
-        <div className="row" style={{ justifyContent: "flex-end" }}>
-          <button className="btn" type="button" onClick={() => setOpen(true)}>
+      <div className="row" style={{ justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
+        {canPrescribe ? (
+          <button className="btn" type="button" onClick={() => setPrescribe(true)}>
             <FlaskConical size={16} style={{ marginRight: 6 }} />
-            Nouvel examen
+            Prescrire un examen
           </button>
-        </div>
+        ) : null}
+        {canUpload ? (
+          <button className="btn ghost" type="button" onClick={() => setOpen(true)}>
+            <FlaskConical size={16} style={{ marginRight: 6 }} />
+            Déposer un résultat
+          </button>
+        ) : null}
+      </div>
+
+      {bons.length > 0 ? (
+        <>
+          <h3 style={{ margin: 0, fontSize: 14 }}>Demandes (bons)</h3>
+          {bons.map((b) => {
+            const st = BON_STATUTS[b.statut] || { label: b.statut_label || b.statut, cls: "blue" };
+            return (
+              <div className="card" key={`bon-${b.id}`}>
+                <div className="row" style={{ justifyContent: "space-between" }}>
+                  <strong>Bon #{b.id}</strong>
+                  <span className={`pill ${st.cls}`}>{st.label}</span>
+                </div>
+                <div className="small muted" style={{ marginTop: 4 }}>
+                  {b.medecin_nom || "Médecin"} · {b.laboratoire_structure_nom || b.laboratoire_nom || "Labo"} ·{" "}
+                  {formatDateFR(b.created_at)}
+                </div>
+                {b.motif ? <p style={{ marginTop: 6 }}>{b.motif}</p> : null}
+                <ul style={{ margin: "8px 0 0 18px" }}>
+                  {(b.lignes || []).map((l: any) => (
+                    <li key={l.id}>
+                      {l.type_examen}
+                      {l.has_resultat ? " · résultat" : " · en attente"}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </>
       ) : null}
-      {items.length === 0 && <Empty text="Aucun résultat d'examen." />}
+
+      {items.length === 0 && bons.length === 0 && <Empty text="Aucun examen prescrit ni résultat." />}
       {items.map((x) => (
         <div className="card" key={x.id}>
           <div className="row" style={{ justifyContent: "space-between" }}>
@@ -800,7 +1188,8 @@ function Examens({ patientId, patientName }: { patientId: number; patientName?: 
             <StatusBadge status={x.statut} />
           </div>
           <div className="small muted">
-            {x.categorie_label} · {x.laboratoire} · {new Date(x.date).toLocaleDateString("fr-FR")}
+            {x.categorie_label} · {x.laboratoire} · {formatDateFR(x.date)}
+            {x.bon_id ? ` · Bon #${x.bon_id}` : ""}
           </div>
           {x.resultat_texte && <p style={{ marginTop: 8 }}>{x.resultat_texte}</p>}
           {x.fichier_url && (
@@ -842,6 +1231,83 @@ function Examens({ patientId, patientName }: { patientId: number; patientName?: 
         </div>
       ))}
 
+      {prescribe ? (
+        <div className="settings-modal-root" role="dialog" aria-modal="true" aria-label="Prescrire un examen">
+          <button type="button" className="settings-modal-backdrop" aria-label="Fermer" onClick={() => setPrescribe(false)} />
+          <div className="settings-modal-card" style={{ maxWidth: 640 }}>
+            <div className="settings-modal-head">
+              <span className="settings-modal-ico">
+                <FlaskConical size={18} />
+              </span>
+              <h2>Prescrire un examen</h2>
+              <button type="button" className="settings-modal-close" onClick={() => setPrescribe(false)} aria-label="Fermer">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="settings-modal-body">
+              <p className="muted small" style={{ marginBottom: 12 }}>
+                Patient : <strong>{patientName}</strong>
+                {user?.full_name ? ` · Médecin : ${user.full_name}` : ""}
+              </p>
+              <label className="label">Examens (1 ou plusieurs)</label>
+              <div style={{ maxHeight: 180, overflow: "auto", marginBottom: 12 }}>
+                {catalogList.map((c: any) => (
+                  <label key={c.code} className="row" style={{ gap: 8, padding: "4px 0" }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedExams.includes(c.code)}
+                      onChange={() => toggleExam(c.code)}
+                    />
+                    <span className="small">{c.label}</span>
+                  </label>
+                ))}
+              </div>
+              <input
+                className="input"
+                placeholder="Motif / indication"
+                value={bonForm.motif}
+                onChange={(e) => setBonForm({ ...bonForm, motif: e.target.value })}
+              />
+              <textarea
+                className="textarea"
+                style={{ marginTop: 8 }}
+                placeholder="Observations (optionnel)"
+                value={bonForm.observations}
+                onChange={(e) => setBonForm({ ...bonForm, observations: e.target.value })}
+              />
+              <div className="grid cols-2" style={{ gap: 8, marginTop: 8 }}>
+                <select
+                  className="select"
+                  value={bonForm.laboratoire}
+                  onChange={(e) => setBonForm({ ...bonForm, laboratoire: e.target.value })}
+                >
+                  <option value="">Laboratoire / structure…</option>
+                  {labs.map((s: any) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nom}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  className="input"
+                  placeholder="Nom du laboratoire (libre)"
+                  value={bonForm.laboratoire_nom}
+                  onChange={(e) => setBonForm({ ...bonForm, laboratoire_nom: e.target.value })}
+                />
+              </div>
+              <div className="row" style={{ gap: 8, marginTop: 16, justifyContent: "flex-end" }}>
+                <button className="btn ghost" type="button" onClick={() => setPrescribe(false)}>
+                  Annuler
+                </button>
+                <button className="btn" type="button" onClick={submitBon} disabled={busy || !selectedExams.length}>
+                  {busy ? "…" : "Créer le bon"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {open ? (
         <div className="settings-modal-root" role="dialog" aria-modal="true" aria-label="Nouvel examen">
           <button type="button" className="settings-modal-backdrop" aria-label="Fermer" onClick={() => setOpen(false)} />
@@ -850,7 +1316,7 @@ function Examens({ patientId, patientName }: { patientId: number; patientName?: 
               <span className="settings-modal-ico">
                 <FlaskConical size={18} />
               </span>
-              <h2>Nouvel examen</h2>
+              <h2>Déposer un résultat</h2>
               <button type="button" className="settings-modal-close" onClick={() => setOpen(false)} aria-label="Fermer">
                 <X size={18} />
               </button>

@@ -36,7 +36,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [sessionExpired]);
 
   useEffect(() => {
-    const on = () => setOnline(true);
+    const on = () => {
+      setOnline(true);
+      void (async () => {
+        try {
+          const { replayOfflineQueue } = await import("./offlineQueue");
+          await replayOfflineQueue(async (a) => {
+            try {
+              await api.replayAction(a.path, a.method, a.body);
+              return { ok: true };
+            } catch (e: any) {
+              return { ok: false, status: e?.status };
+            }
+          });
+        } catch {
+          /* ignore */
+        }
+      })();
+    };
     const off = () => setOnline(false);
     window.addEventListener("online", on);
     window.addEventListener("offline", off);

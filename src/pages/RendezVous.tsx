@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Calendar, Plus, X } from "lucide-react";
 import { api } from "../api";
 import { useAuth } from "../auth";
@@ -18,6 +19,7 @@ function defaultRdvLocal() {
 
 export default function RendezVous() {
   const { user } = useAuth();
+  const nav = useNavigate();
   const setToast = useAppStore((s) => s.setToast);
   const qc = useQueryClient();
   const canWrite = ["medecin", "receptionniste", "admin"].includes(user?.role || "");
@@ -176,11 +178,41 @@ export default function RendezVous() {
                       </button>
                     </div>
                   ) : null}
-                  {canWrite &&
+                  {isMedecin &&
                   !pending &&
-                  a.statut !== "annule" &&
-                  a.statut !== "termine" &&
-                  a.statut !== "absent" ? (
+                  (a.statut === "confirme" || a.statut === "planifie") ? (
+                    <div className="row" style={{ gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                      <button
+                        className="btn sm"
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const c = await api.demarrerConsultation(a.id);
+                            setToast("Consultation démarrée");
+                            qc.invalidateQueries({ queryKey: ["appointments"] });
+                            if (c?.patient) nav(`/patient/${c.patient}?tab=historique`);
+                            else nav(`/patient/${a.patient}?tab=historique`);
+                          } catch (e: any) {
+                            setToast(e?.data?.detail || e?.message || "Échec");
+                          }
+                        }}
+                      >
+                        Démarrer la consultation
+                      </button>
+                      <button
+                        className="btn ghost sm"
+                        type="button"
+                        disabled={annulerMut.isPending}
+                        onClick={() => askAnnuler(a.id)}
+                      >
+                        Annuler le RDV
+                      </button>
+                    </div>
+                  ) : canWrite &&
+                    !pending &&
+                    a.statut !== "annule" &&
+                    a.statut !== "termine" &&
+                    a.statut !== "absent" ? (
                     <div className="row" style={{ gap: 8, marginTop: 12 }}>
                       <button
                         className="btn ghost sm"

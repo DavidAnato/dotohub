@@ -125,7 +125,12 @@ export default function Accueil() {
   const onSearch = async (e: FormEvent) => {
     e.preventDefault();
     if (!online) {
-      setMsg("Hors ligne — recherche indisponible.");
+      const term = q.trim();
+      if (term) {
+        nav( /^\d{10}$/.test(term) ? `/recherche?npi=${encodeURIComponent(term)}` : `/recherche?nom=${encodeURIComponent(term)}`);
+        return;
+      }
+      setMsg("Hors ligne — les patients récents du tableau de bord restent en cache.");
       return;
     }
     const term = q.trim();

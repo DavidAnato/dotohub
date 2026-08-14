@@ -15,6 +15,8 @@ import { api } from "../api";
 import { Avatar } from "../components/Avatar";
 import { useAppStore } from "../store/appStore";
 import { PhoneInput } from "../components/PhoneInput";
+import { SPECIALITES } from "../constants";
+import { HospitalPicker } from "../components/HospitalPicker";
 
 type Panel = "compte" | "photo" | "structure" | "apparence" | "a-propos" | null;
 
@@ -90,6 +92,12 @@ export default function Profil() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
+  const [specialite, setSpecialite] = useState((user as any)?.specialite || "Médecine générale");
+  const [hospitals, setHospitals] = useState<any[]>([]);
+  const [pickedIds, setPickedIds] = useState<number[]>(
+    ((user as any)?.structures || []).map((s: any) => s.id)
+  );
+  const [principalId, setPrincipalId] = useState<number | "">((user as any)?.structure_principale || "");
 
   const structures = (user as any)?.structures as { nom: string }[] | undefined;
   const structureLabel = useMemo(() => {
@@ -98,6 +106,35 @@ export default function Profil() {
   }, [structures]);
 
   if (!user) return null;
+
+  const openStructure = () => {
+    setErr("");
+    setSpecialite((user as any)?.specialite || "Médecine générale");
+    setPickedIds(((user as any)?.structures || []).map((s: any) => s.id));
+    setPrincipalId((user as any)?.structure_principale || "");
+    setPanel("structure");
+    api.hospitals().then((r) => setHospitals(r.structures || [])).catch(() => {});
+  };
+
+  const saveStructures = async () => {
+    setBusy(true);
+    setErr("");
+    try {
+      const updated = await api.updateMe({
+        specialite,
+        structure_ids: pickedIds,
+        structure_principale: principalId || null,
+      });
+      localStorage.setItem("doto_user", JSON.stringify(updated));
+      setUser(updated);
+      setToast("Rattachements enregistrés.");
+      setPanel(null);
+    } catch (e: any) {
+      setErr(e.message || "Erreur");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const photoSrc = preview || user.photo_url || null;
 
@@ -201,7 +238,7 @@ export default function Profil() {
           icon={Building2}
           label="Structure & rôle"
           subtitle={`${structureLabel} · ${user.role_label}`}
-          onClick={() => setPanel("structure")}
+          onClick={openStructure}
         />
       </div>
 
@@ -294,15 +331,41 @@ export default function Profil() {
               Attribué par l&apos;administration — non modifiable
             </p>
           </div>
+          {(user.role === "medecin" || user.role === "admin") && (
+            <div>
+              <span className="label">Spécialité</span>
+              <select
+                className="select"
+                value={specialite}
+                onChange={(e) => setSpecialite(e.target.value)}
+              >
+                {SPECIALITES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
-            <span className="label">Structure</span>
-            <strong>{structureLabel}</strong>
+            <span className="label">Hôpitaux rattachés</span>
+            <HospitalPicker
+              hospitals={hospitals}
+              pickedIds={pickedIds}
+              principalId={principalId}
+              onChangePicked={setPickedIds}
+              onChangePrincipal={setPrincipalId}
+            />
           </div>
           <div>
             <span className="label">Identifiant</span>
             <strong>@{user.username}</strong>
           </div>
         </div>
+        {err ? <p style={{ color: "var(--emergency)", marginTop: 10 }}>{err}</p> : null}
+        <button className="btn" style={{ marginTop: 14 }} disabled={busy} onClick={() => void saveStructures()}>
+          Enregistrer
+        </button>
       </SettingsModal>
 
       <SettingsModal

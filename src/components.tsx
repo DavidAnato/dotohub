@@ -103,7 +103,7 @@ export function OfflineBanner({ online }: { online: boolean }) {
   return (
     <div className="offline-banner" role="status">
       <WifiOff size={16} strokeWidth={2} aria-hidden />
-      Mode hors ligne — certaines actions sont indisponibles.
+      Mode hors ligne — lecture cache, file d'actions en attente de reconnexion.
     </div>
   );
 }

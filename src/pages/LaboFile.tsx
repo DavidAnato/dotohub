@@ -33,6 +33,10 @@ export default function LaboFile() {
   const qc = useQueryClient();
   const [scope, setScope] = useState<Scope>("tous");
   const [showUpload, setShowUpload] = useState(false);
+  const [depositBon, setDepositBon] = useState<any | null>(null);
+  const [depositText, setDepositText] = useState("");
+  const [depositStatut, setDepositStatut] = useState("normal");
+  const [depositFile, setDepositFile] = useState<File | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
 
@@ -45,6 +49,11 @@ export default function LaboFile() {
     },
   });
 
+  const { data: bonsRaw } = useQuery({
+    queryKey: ["exam-orders", "pending"],
+    queryFn: () => api.examOrders("en_attente=1"),
+  });
+  const pendingBons = (bonsRaw?.results || bonsRaw || []) as any[];
   const items = useMemo(() => {
     const raw = data?.results || data || [];
     const list = Array.isArray(raw) ? raw : [];
@@ -148,6 +157,69 @@ export default function LaboFile() {
           </button>
         ))}
       </div>
+
+      </div>
+
+      {pendingBons.length > 0 ? (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h2 style={{ fontSize: 15, marginBottom: 10 }}>Bons en attente</h2>
+          {pendingBons.map((b: any) => (
+            <div key={b.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <strong>
+                  Bon #{b.id} · {b.patient_nom}
+                </strong>
+                <span className="pill blue">{b.statut_label || b.statut}</span>
+              </div>
+              <div className="small muted">
+                {(b.lignes || []).map((l: any) => l.type_examen).join(", ")}
+              </div>
+              <div className="row" style={{ gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                {b.statut === "demande" ? (
+                  <button
+                    className="btn sm"
+                    type="button"
+                    onClick={() =>
+                      api.examOrderAction(b.id, "recevoir").then(() => {
+                        setToast("Bon reçu");
+                        qc.invalidateQueries({ queryKey: ["exam-orders"] });
+                      })
+                    }
+                  >
+                    Marquer reçu
+                  </button>
+                ) : null}
+                {b.statut === "recu" || b.statut === "demande" ? (
+                  <button
+                    className="btn ghost sm"
+                    type="button"
+                    onClick={() =>
+                      api.examOrderAction(b.id, "demarrer").then(() => {
+                        setToast("Examen en cours");
+                        qc.invalidateQueries({ queryKey: ["exam-orders"] });
+                      })
+                    }
+                  >
+                    Démarrer
+                  </button>
+                ) : null}
+                <button
+                  className="btn ghost sm"
+                  type="button"
+                  onClick={() => {
+                    setDepositBon(b);
+                    setDepositText("");
+                    setDepositStatut("normal");
+                    setDepositFile(null);
+                  }}
+                >
+                  Déposer un résultat
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {isLoading ? (
         <div className="skel" style={{ height: 120 }} />
@@ -360,6 +432,121 @@ export default function LaboFile() {
                   onClick={() => createMut.mutate()}
                 >
                   {createMut.isPending ? "Enregistrement…" : "Enregistrer"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {depositBon ? (
+        <div className="settings-modal-root" role="dialog" aria-modal="true" aria-label="Déposer un résultat">
+          <button
+            type="button"
+            className="settings-modal-backdrop"
+            aria-label="Fermer"
+            onClick={() => setDepositBon(null)}
+          />
+          <div className="settings-modal-card" style={{ maxWidth: 520 }}>
+            <div className="settings-modal-head">
+              <span className="settings-modal-ico">
+                <FlaskConical size={18} />
+              </span>
+              <h2>Déposer un résultat</h2>
+              <button
+                type="button"
+                className="settings-modal-close"
+                onClick={() => setDepositBon(null)}
+                aria-label="Fermer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="settings-modal-body">
+              <p className="muted small">
+                Bon #{depositBon.id} · {depositBon.patient_nom} —{" "}
+                {(depositBon.lignes || []).map((l: any) => l.type_examen).join(", ")}
+              </p>
+              <label className="label">Résultat (texte)</label>
+              <textarea
+                className="input"
+                rows={5}
+                value={depositText}
+                onChange={(e) => setDepositText(e.target.value)}
+                placeholder="Compte rendu, valeurs, interprétation…"
+              />
+              <label className="label" style={{ marginTop: 10 }}>
+                Statut
+              </label>
+              <select
+                className="select"
+                value={depositStatut}
+                onChange={(e) => setDepositStatut(e.target.value)}
+              >
+                <option value="normal">Normal</option>
+                <option value="eleve">Élevé</option>
+                <option value="critique">Critique</option>
+              </select>
+              <label className="label" style={{ marginTop: 10 }}>
+                Pièce jointe (optionnel)
+              </label>
+              <input
+                type="file"
+                onChange={(e) => setDepositFile(e.target.files?.[0] || null)}
+              />
+              {depositFile ? <p className="small muted">{depositFile.name}</p> : null}
+              <div className="row" style={{ gap: 8, marginTop: 16, justifyContent: "flex-end" }}>
+                <button className="btn ghost" type="button" onClick={() => setDepositBon(null)}>
+                  Annuler
+                </button>
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={() => {
+                    if (!depositText.trim() && !depositFile) {
+                      setToast("Saisissez un texte ou joignez un fichier.");
+                      return;
+                    }
+                    const ligne =
+                      (depositBon.lignes || []).find((l: any) => !l.has_resultat) ||
+                      depositBon.lignes?.[0];
+                    if (depositFile) {
+                      const fd = new FormData();
+                      if (ligne?.id) fd.append("ligne", String(ligne.id));
+                      fd.append("type_examen", ligne?.type_examen || "");
+                      fd.append("categorie", ligne?.categorie || "analyses");
+                      fd.append("resultat_texte", depositText.trim());
+                      fd.append("statut", depositStatut);
+                      fd.append("fichier", depositFile);
+                      api
+                        .deposerResultat(depositBon.id, fd)
+                        .then(() => {
+                          setToast("Résultat déposé et rattaché au dossier");
+                          setDepositBon(null);
+                          qc.invalidateQueries({ queryKey: ["exam-orders"] });
+                          qc.invalidateQueries({ queryKey: ["labo-examens"] });
+                        })
+                        .catch((e: any) => setToast(e?.data?.detail || e?.message || "Échec"));
+                    } else {
+                      api
+                        .deposerResultat(depositBon.id, {
+                          ligne: ligne?.id,
+                          type_examen: ligne?.type_examen,
+                          categorie: ligne?.categorie,
+                          resultat_texte: depositText.trim(),
+                          statut: depositStatut,
+                        })
+                        .then(() => {
+                          setToast("Résultat déposé et rattaché au dossier");
+                          setDepositBon(null);
+                          qc.invalidateQueries({ queryKey: ["exam-orders"] });
+                          qc.invalidateQueries({ queryKey: ["labo-examens"] });
+                        })
+                        .catch((e: any) => setToast(e?.data?.detail || e?.message || "Échec"));
+                    }
+                  }}
+                >
+                  Enregistrer
                 </button>
               </div>
             </div>

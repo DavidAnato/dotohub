@@ -4,10 +4,12 @@ const API_URL =
   import.meta.env.VITE_API_URL ??
   (import.meta.env.DEV ? "" : "https://doto-backend-71tk.onrender.com");
 
+import { PIN_REGEX } from "./constants";
+
 const LOCAL_PIN_KEY = "doto_hub_local_pin";
 
 export function saveLocalPin(pin: string) {
-  if (/^\d{5}$/.test(pin)) localStorage.setItem(LOCAL_PIN_KEY, pin);
+  if (PIN_REGEX.test(pin)) localStorage.setItem(LOCAL_PIN_KEY, pin);
 }
 
 export function clearLocalPin() {
@@ -79,6 +81,25 @@ async function request<T = any>(
   options: RequestInit = {},
   retry = true
 ): Promise<T> {
+  const method = String(options.method || "GET").toUpperCase();
+  const navOffline = typeof navigator !== "undefined" && navigator.onLine === false;
+  if (
+    navOffline &&
+    (method === "POST" || method === "PATCH" || method === "PUT") &&
+    path.startsWith("/api/") &&
+    !path.includes("/auth/")
+  ) {
+    const { enqueueOffline } = await import("./offlineQueue");
+    let body: unknown;
+    try {
+      body = options.body ? JSON.parse(String(options.body)) : undefined;
+    } catch {
+      body = undefined;
+    }
+    enqueueOffline({ method: method as "POST" | "PATCH" | "PUT", path, body });
+    return { queued: true, offline: true } as T;
+  }
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
@@ -172,11 +193,19 @@ export const api = {
   },
 
   me: () => request("/api/auth/me/"),
+  replayAction: (path: string, method: string, body?: unknown) =>
+    request(path, {
+      method,
+      body: body != null ? JSON.stringify(body) : undefined,
+    }),
   updateMe: (body: {
     first_name?: string;
     last_name?: string;
     telephone?: string;
     email?: string;
+    specialite?: string;
+    structure_principale?: number | null;
+    structure_ids?: number[];
   }) => request("/api/auth/me/", { method: "PATCH", body: JSON.stringify(body) }),
 
   async setPin(pin: string, oldPin?: string) {
@@ -352,6 +381,37 @@ export const api = {
   listMedecinsRdv: () => request("/api/appointments/medecins/"),
   confirmerAppointment: (id: number | string) =>
     request(`/api/appointments/${id}/confirmer/`, { method: "POST" }),
+  demarrerConsultation: (id: number | string, body: Record<string, unknown> = {}) =>
+    request(`/api/appointments/${id}/demarrer-consultation/`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  examOrders: (params = "") =>
+    request(`/api/exam-orders/${params ? `?${params}` : ""}`),
+  createExamOrder: (body: unknown) =>
+    request("/api/exam-orders/", { method: "POST", body: JSON.stringify(body) }),
+  examOrderAction: (id: number, action: "recevoir" | "demarrer" | "cloturer") =>
+    request(`/api/exam-orders/${id}/${action}/`, { method: "POST" }),
+  deposerResultat: (id: number, body: FormData | Record<string, unknown>) => {
+    if (body instanceof FormData) {
+      return authFetch(`/api/exam-orders/${id}/deposer-resultat/`, {
+        method: "POST",
+        body,
+      }).then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new ApiError(res.status, data);
+        return data;
+      });
+    }
+    return request(`/api/exam-orders/${id}/deposer-resultat/`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+  examCatalog: () => request("/api/exam-catalog/"),
+  hospitals: (params = "") =>
+    request(`/api/auth/hospitals/${params ? `?${params}` : ""}`),
+  contracts: () => request("/api/auth/contracts/"),
   accessBlocks: (params = "") => request(`/api/access-blocks/${params ? `?${params}` : ""}`),
 
   /** OTP patient : inscription / changement MDP (pas login pro). */

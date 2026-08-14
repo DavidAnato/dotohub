@@ -30,13 +30,14 @@ export const queryPersister = createSyncStoragePersister({
 export const persistOptions = {
   persister: queryPersister,
   maxAge: GC_MS,
-  buster: "v2-consent-fresh",
+  buster: "v3-offline-read",
   dehydrateOptions: {
     shouldDehydrateQuery: (query: Query) => {
-      const key = query.queryKey?.[0];
-      // Ne pas persister les dossiers (consentement critique).
-      if (key === "patient") return false;
-      return query.state.status === "success";
+      if (query.state.status !== "success") return false;
+      const key = String(query.queryKey?.[0] || "");
+      // Session auth : ne pas persister. Le reste (patients, dossier, RDV, labo) sert hors-ligne.
+      if (key === "auth") return false;
+      return true;
     },
   },
 };
