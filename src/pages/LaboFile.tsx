@@ -158,8 +158,6 @@ export default function LaboFile() {
         ))}
       </div>
 
-      </div>
-
       {pendingBons.length > 0 ? (
         <div className="card" style={{ marginBottom: 16 }}>
           <h2 style={{ fontSize: 15, marginBottom: 10 }}>Bons en attente</h2>
