@@ -27,7 +27,8 @@ export function notificationPath(n: NotifLike, app: "hub" | "admin" | "patient" 
   const payload = (n.payload || {}) as Record<string, unknown>;
   const kind = String(payload.kind || "");
   const type = KIND_TO_TYPE[kind] || n.type || n.notif_type || "system";
-  const patientId = Number(payload.patient_id ?? n.patient_id || 0) || null;
+  const rawPatientId = payload.patient_id ?? n.patient_id;
+  const patientId = Number(rawPatientId) || null;
   const accessId = Number(payload.access_request_id || 0) || null;
   const apptId = Number(payload.appointment_id || 0) || null;
 
