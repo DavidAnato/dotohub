@@ -14,7 +14,7 @@ import { useAppStore } from "./store/appStore";
 import { api } from "./api";
 import { canSeeAgenda, canSeeDodoCards } from "./roleNav";
 import { qk } from "./queries/keys";
-import { needsHospitalAttach } from "./constants";
+import { needsHospitalAttach, PIN_ERROR, PIN_REGEX } from "./constants";
 import Login from "./pages/Login";
 import Accueil from "./pages/Accueil";
 import Recherche from "./pages/Recherche";
@@ -420,6 +420,10 @@ export default function App() {
 
   const handleSetupPin = async (pin: string) => {
     if (pinBusyRef.current) return;
+    if (!PIN_REGEX.test(pin)) {
+      setPinError(PIN_ERROR);
+      return;
+    }
     pinBusyRef.current = true;
     setPinBusy(true);
     setPinError("");
@@ -442,6 +446,10 @@ export default function App() {
 
   const handleUnlock = async (pin: string) => {
     if (pinBusyRef.current) return;
+    if (!PIN_REGEX.test(pin)) {
+      setPinError(PIN_ERROR);
+      return;
+    }
     pinBusyRef.current = true;
     setPinBusy(true);
     setPinError("");

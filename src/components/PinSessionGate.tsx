@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Fingerprint, Lock, ShieldAlert } from "lucide-react";
 
-import { PIN_LEN } from "../constants";
+import { PIN_ERROR, PIN_LEN, PIN_REGEX } from "../constants";
 
 type PinBoxesProps = {
   value: string;
@@ -44,7 +44,7 @@ export function PinBoxes({
     if (locked) return;
     const next = raw.replace(/\D/g, "").slice(0, PIN_LEN);
     onChange(next);
-    if (next.length === PIN_LEN) onComplete?.(next);
+    if (PIN_REGEX.test(next)) onComplete?.(next);
   };
 
   return (
@@ -85,9 +85,11 @@ export function PinBoxes({
         className="pin-hidden"
         value={digits}
         onChange={(e) => handle(e.target.value)}
+        type="tel"
         inputMode="numeric"
-        autoComplete="one-time-code"
-        maxLength={PIN_LEN}
+        pattern="\d{4}"
+        autoComplete="off"
+        maxLength={4}
         disabled={locked}
         aria-hidden
       />
@@ -135,6 +137,10 @@ export function PinSessionGate({
   const complete = async (v: string) => {
     if (busy || submittingRef.current) return;
     setLocalErr("");
+    if (!PIN_REGEX.test(v)) {
+      setLocalErr(PIN_ERROR);
+      return;
+    }
     if (mode === "setup") {
       if (step === "pin") {
         setPin(v);

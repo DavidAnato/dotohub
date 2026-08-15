@@ -4,7 +4,7 @@ const API_URL =
   import.meta.env.VITE_API_URL ??
   (import.meta.env.DEV ? "" : "https://doto-backend-71tk.onrender.com");
 
-import { PIN_REGEX } from "./constants";
+import { PIN_ERROR, PIN_REGEX } from "./constants";
 
 const LOCAL_PIN_KEY = "doto_hub_local_pin";
 
@@ -209,6 +209,7 @@ export const api = {
   }) => request("/api/auth/me/", { method: "PATCH", body: JSON.stringify(body) }),
 
   async setPin(pin: string, oldPin?: string) {
+    if (!PIN_REGEX.test(pin)) throw Object.assign(new Error(PIN_ERROR), { data: { detail: PIN_ERROR } });
     const data = await request("/api/auth/set-pin/", {
       method: "POST",
       body: JSON.stringify({ pin, old_pin: oldPin || "" }),
@@ -218,6 +219,7 @@ export const api = {
   },
 
   async verifyPin(pin: string) {
+    if (!PIN_REGEX.test(pin)) throw Object.assign(new Error(PIN_ERROR), { data: { detail: PIN_ERROR } });
     // Déverrouillage local immédiat si le PIN est en cache client
     if (matchLocalPin(pin)) {
       void request("/api/auth/verify-pin/", {
