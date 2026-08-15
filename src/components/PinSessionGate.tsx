@@ -87,9 +87,9 @@ export function PinBoxes({
         onChange={(e) => handle(e.target.value)}
         type="tel"
         inputMode="numeric"
-        pattern="\d{4}"
+        pattern={`\\d{${PIN_LEN}}`}
         autoComplete="off"
-        maxLength={4}
+        maxLength={PIN_LEN}
         disabled={locked}
         aria-hidden
       />
@@ -181,7 +181,7 @@ export function PinSessionGate({
           {subtitle ||
             (mode === "setup"
               ? step === "confirm"
-                ? "Confirmez votre code à 4 chiffres"
+                ? `Confirmez votre code à ${PIN_LEN} chiffres`
                 : "Obligatoire pour sécuriser votre session Hub"
               : "Saisissez votre PIN pour continuer")}
         </p>
@@ -192,7 +192,7 @@ export function PinSessionGate({
           error={!!displayErr && !busy}
           disabled={busy}
           loading={!!busy}
-          label="4 chiffres"
+          label={`${PIN_LEN} chiffres`}
         />
         {displayErr && !busy ? <p className="pin-error">{displayErr}</p> : null}
         {busy ? <p className="pin-busy-hint muted">Vérification en cours…</p> : null}
