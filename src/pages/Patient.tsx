@@ -23,7 +23,7 @@ import {
   useConstantes,
   useCreateConstante,
 } from "../queries/hooks";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BON_STATUTS,
   emptyMedLine,
@@ -55,6 +55,17 @@ const RDV_WRITE_ROLES = new Set(["medecin", "receptionniste", "admin"]);
 const CLINICAL_WRITE_ROLES = new Set(["medecin", "admin"]); // consult + ordonnances
 const CONSTANTES_WRITE_ROLES = new Set(["infirmier", "medecin", "ambulancier", "admin"]);
 
+function pickNextAppointment(list: any[] | undefined) {
+  if (!list?.length) return null;
+  const now = Date.now();
+  const upcoming = list
+    .filter((a) => a.statut !== "annule" && a.statut !== "termine" && a.debut)
+    .map((a) => ({ a, t: new Date(a.debut).getTime() }))
+    .filter((x) => !Number.isNaN(x.t) && x.t >= now - 60 * 60 * 1000)
+    .sort((x, y) => x.t - y.t);
+  return upcoming[0]?.a ?? null;
+}
+
 function defaultRdvLocal() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
@@ -68,6 +79,7 @@ export default function Patient() {
   const nav = useNavigate();
   const { user } = useAuth();
   const { data: patient, isLoading, refetch } = usePatient(id);
+  const qc = useQueryClient();
   const verifyAnip = useVerifyAnip(id!);
   const setToast = useAppStore((s) => s.setToast);
   const [tab, setTab] = useState<TabKey>("historique");
@@ -97,6 +109,17 @@ export default function Patient() {
     enabled: canWriteRdv && (isReception || user?.role === "admin"),
   });
   const medecinsList = Array.isArray(medecinsRdv) ? medecinsRdv : [];
+  const { data: patientAppts } = useQuery({
+    queryKey: ["appointments", "patient", id],
+    queryFn: () => api.appointments(`patient=${id}`),
+    enabled: !!id,
+  });
+  const apptList = Array.isArray(patientAppts)
+    ? patientAppts
+    : Array.isArray((patientAppts as any)?.results)
+      ? (patientAppts as any).results
+      : [];
+  const nextRdv = pickNextAppointment(apptList);
 
   useEffect(() => {
     setTab(tabs[0]);
@@ -163,6 +186,7 @@ export default function Patient() {
         }
       }
       await api.createAppointment(body);
+      void qc.invalidateQueries({ queryKey: ["appointments"] });
       setToast(
         isReception && rdvForm.mode === "medecin"
           ? "RDV envoyé au médecin pour confirmation"
@@ -176,7 +200,6 @@ export default function Patient() {
         professionnel: "",
         mode: "medecin",
       });
-      nav("/rdv");
     } catch (e: any) {
       setToast(e?.data?.detail || e.message || "Échec création RDV");
     } finally {
@@ -229,6 +252,49 @@ export default function Patient() {
             onClick={() => verifyAnip.mutate()}
           >
             Vérifier ANIP
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  const nextRdvBlock = (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div className="row" style={{ justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <div className="small muted" style={{ fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase" }}>
+            Prochain RDV
+          </div>
+          {nextRdv ? (
+            <>
+              <div style={{ fontWeight: 800, marginTop: 4 }}>
+                {new Date(nextRdv.debut).toLocaleString("fr-FR", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </div>
+              <div className="small muted" style={{ marginTop: 2 }}>
+                {[nextRdv.professionnel_nom ? `Dr ${nextRdv.professionnel_nom}` : "Réception", nextRdv.structure_nom]
+                  .filter(Boolean)
+                  .join(" · ") || nextRdv.motif || "Consultation"}
+                {nextRdv.statut_label ? ` · ${nextRdv.statut_label}` : ""}
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontWeight: 800, marginTop: 4 }}>Aucun rendez-vous à venir</div>
+              <div className="small muted" style={{ marginTop: 2 }}>
+                Planifiez depuis cette fiche ou l&apos;agenda
+              </div>
+            </>
+          )}
+        </div>
+        {canWriteRdv ? (
+          <button className="btn ghost sm" type="button" onClick={() => setShowRdv(true)}>
+            {nextRdv ? "Nouveau RDV" : "Planifier"}
           </button>
         ) : null}
       </div>
@@ -338,6 +404,7 @@ export default function Patient() {
     return (
       <div>
         {header}
+        {nextRdvBlock}
         {rdvModal}
         <ConsentWaiting
           patientName={patient.full_name}
@@ -372,6 +439,7 @@ export default function Patient() {
     return (
       <div>
         {header}
+        {nextRdvBlock}
         {rdvModal}
         <UrgenceHeader u={urg} />
         <div className="card" style={{ marginBottom: 16 }}>
@@ -398,6 +466,7 @@ export default function Patient() {
       {emergency ? <ConsentWaiting emergency /> : null}
       {header}
       {rdvModal}
+      {nextRdvBlock}
       <UrgenceHeader u={urg} />
 
       <div className="tabs">
@@ -1524,6 +1593,21 @@ function Assurance({
     }
   };
 
+  const remove = async () => {
+    if (!window.confirm("Retirer l'assurance de ce patient ? La carte passera en Non assuré.")) return;
+    setBusy(true);
+    try {
+      await api.deleteAssurance(patientId);
+      setToast("Assurance retirée.");
+      setEditing(false);
+      onSaved?.();
+    } catch (e: any) {
+      setToast(e?.data?.detail || e.message || "Échec retrait assurance.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (!data && !canWrite) return <Empty text="Aucune assurance enregistrée." />;
 
   if (canWrite && (editing || !data)) {
@@ -1567,6 +1651,11 @@ function Assurance({
               Annuler
             </button>
           ) : null}
+          {data ? (
+            <button className="btn ghost" type="button" disabled={busy} onClick={() => void remove()}>
+              Retirer
+            </button>
+          ) : null}
         </div>
       </div>
     );
@@ -1586,9 +1675,14 @@ function Assurance({
             {data.droits_valides ? "Droits valides" : "Droits suspendus"}
           </span>
           {canWrite ? (
-            <button className="btn ghost sm" type="button" onClick={() => setEditing(true)}>
-              Modifier
-            </button>
+            <>
+              <button className="btn ghost sm" type="button" onClick={() => setEditing(true)}>
+                Modifier
+              </button>
+              <button className="btn ghost sm" type="button" disabled={busy} onClick={() => void remove()}>
+                Retirer
+              </button>
+            </>
           ) : null}
         </div>
       </div>

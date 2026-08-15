@@ -66,10 +66,22 @@ function invalidateFromHubEvent(
     String(ev.payload?.kind || "").startsWith("rdv")
   ) {
     void qc.invalidateQueries({ queryKey: ["appointments"] });
+    void qc.invalidateQueries({ queryKey: qk.hubDashboard });
+  }
+
+  if (
+    ev.type === "insurance_updated" ||
+    section === "assurance" ||
+    String(ev.payload?.kind || "").startsWith("insurance")
+  ) {
+    invalidatePatientMedical(qc, pid);
+    void qc.invalidateQueries({ queryKey: qk.hubDashboard });
+    void qc.invalidateQueries({ queryKey: ["dodocards"] });
   }
 
   if (
     ev.type === "patient_list" ||
+    ev.type === "insurance_updated" ||
     ev.type === "dossier_updated" ||
     ev.type === "ordonnance" ||
     ev.type === "examen" ||
@@ -154,7 +166,9 @@ function Layout() {
         ev.type === "dossier_updated" ||
         ev.type === "ordonnance" ||
         ev.type === "examen" ||
-        ev.type === "appointment"
+        ev.type === "appointment" ||
+        ev.type === "patient_list" ||
+        ev.type === "insurance_updated"
       ) {
         invalidateFromHubEvent(qc, ev);
         return;

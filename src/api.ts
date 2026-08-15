@@ -281,6 +281,8 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(body),
     }),
+  deleteAssurance: (patientId: number | string) =>
+    request(`/api/patients/${patientId}/assurance/`, { method: "DELETE" }),
 
   consultations: (patient: number | string) =>
     request(`/api/consultations/?patient=${patient}`),
