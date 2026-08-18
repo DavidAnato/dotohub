@@ -1111,6 +1111,7 @@ function Examens({ patientId, patientName }: { patientId: number; patientName?: 
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [selectedExams, setSelectedExams] = useState<string[]>([]);
+  const [autreExamen, setAutreExamen] = useState("");
   const [bonForm, setBonForm] = useState({ motif: "", observations: "", laboratoire: "", laboratoire_nom: "" });
 
   const canUpload = user?.role === "laborantin" || user?.role === "admin";
@@ -1166,9 +1167,20 @@ function Examens({ patientId, patientName }: { patientId: number; patientName?: 
       setToast("Sélectionnez au moins un examen.");
       return;
     }
+    if (selectedExams.includes("autre") && !autreExamen.trim()) {
+      setToast("Précisez le type d'examen (Autre).");
+      return;
+    }
     setBusy(true);
     try {
       const lignes = selectedExams.map((code) => {
+        if (code === "autre") {
+          return {
+            code: "autre",
+            type_examen: autreExamen.trim(),
+            categorie: "autres",
+          };
+        }
         const item = catalogList.find((c: any) => c.code === code || c.label === code);
         return {
           code: item?.code || "",
@@ -1186,6 +1198,7 @@ function Examens({ patientId, patientName }: { patientId: number; patientName?: 
       });
       setPrescribe(false);
       setSelectedExams([]);
+      setAutreExamen("");
       setBonForm({ motif: "", observations: "", laboratoire: "", laboratoire_nom: "" });
       setToast("Bon d'examen prescrit");
       refetchBons();
@@ -1331,6 +1344,15 @@ function Examens({ patientId, patientName }: { patientId: number; patientName?: 
                   </label>
                 ))}
               </div>
+              {selectedExams.includes("autre") ? (
+                <input
+                  className="input"
+                  placeholder="Préciser l'examen (saisie libre)"
+                  value={autreExamen}
+                  onChange={(e) => setAutreExamen(e.target.value)}
+                  style={{ marginBottom: 12 }}
+                />
+              ) : null}
               <input
                 className="input"
                 placeholder="Motif / indication"
