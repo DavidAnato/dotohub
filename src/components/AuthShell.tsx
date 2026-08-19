@@ -11,9 +11,6 @@ type Props = {
   wide?: boolean;
   logoSrc?: string;
   logoAlt?: string;
-  cardBrand?: string;
-  cardName?: string;
-  cardMeta?: string;
 };
 
 /** Split SaaS : hero navy à gauche, formulaire à droite. */
@@ -26,9 +23,6 @@ export function AuthShell({
   wide,
   logoSrc = "/logo-dotohub.png",
   logoAlt = "DotoHub",
-  cardBrand = "DOTO+",
-  cardName = "Dossier patient",
-  cardMeta = "Bénin · CIP / NPI",
 }: Props) {
   return (
     <div className={"auth-shell" + (wide ? " auth-shell--wide" : "")}>
@@ -41,13 +35,6 @@ export function AuthShell({
           <p className="auth-hero__kicker">{kicker}</p>
           <h2 className="auth-hero__title">{headline}</h2>
           <p className="auth-hero__lede">{lede}</p>
-          <div className="auth-card-mock" aria-hidden="true">
-            <span className="auth-card-mock__stripe" />
-            <span className="auth-card-mock__chip" />
-            <span className="auth-card-mock__brand">{cardBrand}</span>
-            <span className="auth-card-mock__name">{cardName}</span>
-            <span className="auth-card-mock__meta">{cardMeta}</span>
-          </div>
           {points?.length ? (
             <ul className="auth-hero__points">
               {points.map((p) => (

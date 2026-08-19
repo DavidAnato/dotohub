@@ -130,8 +130,6 @@ export default function Inscription() {
         { title: "Établissement. ", text: "Cabinet, clinique ou rattachement catalogue." },
         { title: "PIN ensuite. ", text: "Code à 4 chiffres à la première session." },
       ]}
-      cardName="Compte professionnel"
-      cardMeta="Médecin · pharmacie · labo"
     >
       <div className="auth-head">
         <p className="auth-kicker">Inscription</p>

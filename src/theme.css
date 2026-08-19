@@ -439,54 +439,6 @@ html[data-theme="dark"] .hub-hero-badge img {
   color: rgba(247, 252, 253, 0.78);
   margin-bottom: 28px;
 }
-.auth-card-mock {
-  position: relative;
-  width: min(280px, 100%);
-  height: 164px;
-  border-radius: 18px;
-  padding: 18px 20px;
-  margin-bottom: 32px;
-  background: linear-gradient(135deg, #1a3a56 0%, #132438 100%);
-  border: 1px solid rgba(43, 179, 188, 0.35);
-  box-shadow: 0 18px 40px rgba(8, 18, 30, 0.35);
-  overflow: hidden;
-}
-.auth-card-mock__stripe {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  background: var(--auth-teal);
-}
-.auth-card-mock__chip {
-  display: block;
-  width: 34px;
-  height: 24px;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #d7e4ea, #8fb6c0);
-  margin-bottom: 28px;
-}
-.auth-card-mock__brand {
-  display: block;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  color: var(--auth-teal);
-  margin-bottom: 6px;
-}
-.auth-card-mock__name {
-  display: block;
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: #fff;
-}
-.auth-card-mock__meta {
-  display: block;
-  margin-top: 6px;
-  font-size: 12px;
-  color: rgba(247, 252, 253, 0.62);
-}
 .auth-hero__points {
   list-style: none;
   display: flex;
@@ -2170,8 +2122,7 @@ html[data-theme="dark"] .settings-modal-backdrop {
   .auth-hero__lede {
     margin-bottom: 0;
   }
-  .auth-hero__points,
-  .auth-card-mock {
+  .auth-hero__points {
     display: none;
   }
   .auth-hero__logo {
