@@ -83,15 +83,14 @@ export function HospitalAttachGate({
   return (
     <div className="pin-gate" role="dialog" aria-modal="true" aria-labelledby="hospital-gate-title">
       <div className="pin-gate__card" style={{ textAlign: "left", width: "min(520px, 100%)", maxHeight: "92vh", overflow: "auto" }}>
-        <div className="pin-gate__icon">
-          <Building2 size={28} />
+        <div className="auth-head" style={{ textAlign: "center" }}>
+          <div className="pin-gate__icon">
+            <Building2 size={24} />
+          </div>
+          <p className="auth-kicker">Première connexion</p>
+          <h2 id="hospital-gate-title">Votre exercice</h2>
+          <p className="muted">Type, ville, établissement(s) et numéros d'autorisation.</p>
         </div>
-        <h2 id="hospital-gate-title" style={{ textAlign: "center" }}>
-          Inscription professionnelle
-        </h2>
-        <p className="muted" style={{ textAlign: "center" }}>
-          Type, ville, établissement(s) et numéros d'autorisation.
-        </p>
         <label className="label">Type</label>
         <select className="select" value={kind} onChange={(e) => setKind(e.target.value)}>
           {TYPE_EXERCICE.map((k) => (
@@ -134,7 +133,7 @@ export function HospitalAttachGate({
           </div>
         ) : null}
         {err ? <p style={{ color: "var(--emergency)", marginTop: 10 }}>{err}</p> : null}
-        <button className="btn" style={{ width: "100%", marginTop: 16 }} disabled={busy} onClick={() => void save()}>
+        <button className="btn auth-submit" style={{ marginTop: 8 }} disabled={busy} onClick={() => void save()}>
           {busy ? "Enregistrement…" : "Valider"}
         </button>
       </div>

@@ -171,8 +171,9 @@ export function PinSessionGate({
     <div className="pin-gate" role="dialog" aria-modal="true" aria-labelledby="pin-gate-title">
       <div className="pin-gate__card">
         <div className="pin-gate__icon">
-          {mode === "setup" ? <ShieldAlert size={28} /> : <Lock size={28} />}
+          {mode === "setup" ? <ShieldAlert size={24} /> : <Lock size={24} />}
         </div>
+        <p className="auth-kicker">{mode === "setup" ? "Sécurité" : "Session"}</p>
         <h2 id="pin-gate-title">
           {title ||
             (mode === "setup" ? "Configurer votre code PIN" : "Session verrouillée")}
