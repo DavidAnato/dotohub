@@ -30,17 +30,17 @@ export default function PharmaFile() {
   const items = useMemo(() => {
     const raw = data?.results || data || [];
     const list = Array.isArray(raw) ? raw : [];
-    return list.filter((o: any) => o.statut === "active" || o.statut === "dispensee");
+    return list.filter((o: any) => o.statut === "active" || o.statut === "dispensee" || o.statut === "payee");
   }, [data]);
 
   const dispenseMut = useMutation({
     mutationFn: (id: number) => api.dispenser(id),
     onMutate: (id) => setBusyId(id),
     onSuccess: () => {
-      setToast("Ordonnance marquée dispensée");
+      setToast("Ordonnance marquée payée");
       qc.invalidateQueries({ queryKey: ["ordonnances", "pharma", patientId] });
     },
-    onError: (e: any) => setToast(e?.data?.detail || e.message || "Échec dispense"),
+    onError: (e: any) => setToast(e?.data?.detail || e.message || "Échec paiement"),
     onSettled: () => setBusyId(null),
   });
 
@@ -48,7 +48,7 @@ export default function PharmaFile() {
     mutationFn: (id: number) => api.annulerDispense(id),
     onMutate: (id) => setBusyId(id),
     onSuccess: () => {
-      setToast("Dispense annulée");
+      setToast("Paiement annulé");
       qc.invalidateQueries({ queryKey: ["ordonnances", "pharma", patientId] });
     },
     onError: (e: any) => setToast(e?.data?.detail || e.message || "Échec"),
@@ -71,10 +71,10 @@ export default function PharmaFile() {
       <div className="row" style={{ justifyContent: "space-between", marginBottom: 16 }}>
         <header className="page-head" style={{ marginBottom: 0 }}>
           <h1 style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Pill size={22} /> Dispenser une ordonnance
+            <Pill size={22} /> Marquer une ordonnance payée
           </h1>
           <p className="muted small">
-            L’ordonnance est prescrite par le médecin et valable dans toute pharmacie —
+            L’ordonnance est prescrite par le médecin et valable dans toute pharmacie -
             identifiez le patient (NPI / nom), puis dispensez.
           </p>
         </header>
@@ -124,12 +124,12 @@ export default function PharmaFile() {
                     <span className="small muted"> · NPI {o.patient_npi}</span>
                   ) : null}
                 </div>
-                <span className={`pill ${o.statut === "dispensee" ? "green" : "blue"}`}>
+                <span className={`pill ${o.statut === "dispensee" || o.statut === "payee" ? "green" : "blue"}`}>
                   {o.statut_label || o.statut || "active"}
                 </span>
               </div>
               <div className="small muted" style={{ marginTop: 6 }}>
-                {o.date ? new Date(o.date).toLocaleDateString("fr-FR") : "—"}
+                {o.date ? new Date(o.date).toLocaleDateString("fr-FR") : "-"}
                 {o.medecin_nom ? ` · Dr ${o.medecin_nom}` : ""}
                 {o.structure_nom ? ` · prescrit à ${o.structure_nom}` : ""}
               </div>
@@ -146,25 +146,25 @@ export default function PharmaFile() {
                   type="button"
                   disabled={busyId === o.id || dispenseMut.isPending}
                   onClick={() => {
-                    if (!window.confirm("Marquer cette ordonnance comme dispensée ?")) return;
+                    if (!window.confirm("Marquer cette ordonnance comme payée ?")) return;
                     dispenseMut.mutate(o.id);
                   }}
                 >
-                  {busyId === o.id ? "Dispense…" : "Marquer dispensée"}
+                  {busyId === o.id ? "Paiement…" : "Marquer payée"}
                 </button>
               ) : null}
-              {o.statut === "dispensee" ? (
+              {o.statut === "dispensee" || o.statut === "payee" ? (
                 <button
                   className="btn ghost sm"
                   style={{ marginTop: 12 }}
                   type="button"
                   disabled={busyId === o.id || annulerDispenseMut.isPending}
                   onClick={() => {
-                    if (!window.confirm("Annuler la dispense ? L'ordonnance redeviendra active.")) return;
+                    if (!window.confirm("Annuler le paiement ? L'ordonnance redeviendra active.")) return;
                     annulerDispenseMut.mutate(o.id);
                   }}
                 >
-                  {busyId === o.id ? "…" : "Annuler la dispense"}
+                  {busyId === o.id ? "…" : "Annuler le paiement"}
                 </button>
               ) : null}
             </div>

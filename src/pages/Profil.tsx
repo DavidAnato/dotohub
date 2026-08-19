@@ -231,7 +231,7 @@ export default function Profil() {
         <SettingsRow
           icon={Camera}
           label="Photo d'identité"
-          subtitle={user.photo_url ? "Photo enregistrée" : "Visage centré — obligatoire"}
+          subtitle={user.photo_url ? "Photo enregistrée" : "Visage centré - obligatoire"}
           onClick={openPhoto}
         />
         <SettingsRow
@@ -301,7 +301,7 @@ export default function Profil() {
             <Avatar src={photoSrc} name={user.full_name} size={128} />
           </div>
           <p className="muted" style={{ marginTop: 12, fontSize: 13, lineHeight: 1.5 }}>
-            Cadrez votre visage au centre. JPEG, PNG ou WebP — type photo d&apos;identité.
+            Cadrez votre visage au centre. JPEG, PNG ou WebP - type photo d&apos;identité.
           </p>
           {err ? <p style={{ color: "var(--emergency)", marginTop: 10 }}>{err}</p> : null}
           <label className="btn ghost sm" style={{ marginTop: 14, cursor: "pointer" }}>
@@ -328,7 +328,7 @@ export default function Profil() {
             <span className="label">Rôle</span>
             <strong>{user.role_label}</strong>
             <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-              Attribué par l&apos;administration — non modifiable
+              Attribué par l&apos;administration - non modifiable
             </p>
           </div>
           {(user.role === "medecin" || user.role === "admin") && (
@@ -381,7 +381,7 @@ export default function Profil() {
           <span className="settings-row-body">
             <span className="settings-row-label">Mode sombre</span>
             <span className="settings-row-sub">
-              {theme === "dark" ? "Activé" : "Désactivé"} — basculez depuis ce panneau ou la barre
+              {theme === "dark" ? "Activé" : "Désactivé"} - basculez depuis ce panneau ou la barre
               supérieure
             </span>
           </span>

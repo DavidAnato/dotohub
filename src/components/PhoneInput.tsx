@@ -64,7 +64,7 @@ export function PhoneInput({
           aria-label={`${label}, indicatif Bénin ${BJ}`}
         />
       </div>
-      <p className="phone-hint">Indicatif Bénin prérempli — saisissez uniquement le numéro local.</p>
+      <p className="phone-hint">Indicatif Bénin prérempli - saisissez uniquement le numéro local.</p>
     </div>
   );
 }

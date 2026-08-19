@@ -2,7 +2,7 @@
   "name": "dotohub",
   "private": true,
   "version": "1.0.0",
-  "description": "DotoHub — plateforme web professionnels DOTO+",
+  "description": "DotoHub - plateforme web professionnels DOTO+",
   "type": "module",
   "scripts": {
     "dev": "vite --port 5173",

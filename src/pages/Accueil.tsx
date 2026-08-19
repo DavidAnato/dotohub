@@ -130,7 +130,7 @@ export default function Accueil() {
         nav( /^\d{10}$/.test(term) ? `/recherche?npi=${encodeURIComponent(term)}` : `/recherche?nom=${encodeURIComponent(term)}`);
         return;
       }
-      setMsg("Hors ligne — les patients récents du tableau de bord restent en cache.");
+      setMsg("Hors ligne - les patients récents du tableau de bord restent en cache.");
       return;
     }
     const term = q.trim();
@@ -152,7 +152,7 @@ export default function Accueil() {
       } else if (term.length > 40) {
         const res = await api.scan(term);
         if (res.consent_required) {
-          setMsg("Demande envoyée au patient — en attente de confirmation…");
+          setMsg("Demande envoyée au patient - en attente de confirmation…");
         }
         nav(`/patient/${res.patient_id}`);
       } else {

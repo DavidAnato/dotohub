@@ -4,7 +4,7 @@ import { useAppStore, type HubUser } from "./store/appStore";
 
 export type User = HubUser;
 
-/** Compat — lit la session depuis le store Zustand. */
+/** Compat - lit la session depuis le store Zustand. */
 export function useAuth() {
   const user = useAppStore((s) => s.user);
   const loading = useAppStore((s) => s.authLoading);

@@ -58,7 +58,7 @@ type SessionExpiredHandler = (message: string) => void;
 let sessionExpiredHandler: SessionExpiredHandler | null = null;
 let sessionExpiredLock = false;
 
-/** Enregistré par AuthProvider — clear Zustand + toast + redirection Login. */
+/** Enregistré par AuthProvider - clear Zustand + toast + redirection Login. */
 export function setSessionExpiredHandler(handler: SessionExpiredHandler | null) {
   sessionExpiredHandler = handler;
 }
@@ -198,15 +198,8 @@ export const api = {
       method,
       body: body != null ? JSON.stringify(body) : undefined,
     }),
-  updateMe: (body: {
-    first_name?: string;
-    last_name?: string;
-    telephone?: string;
-    email?: string;
-    specialite?: string;
-    structure_principale?: number | null;
-    structure_ids?: number[];
-  }) => request("/api/auth/me/", { method: "PATCH", body: JSON.stringify(body) }),
+  updateMe: (body: Record<string, unknown>) =>
+    request("/api/auth/me/", { method: "PATCH", body: JSON.stringify(body) }),
 
   async setPin(pin: string, oldPin?: string) {
     if (!PIN_REGEX.test(pin)) throw Object.assign(new Error(PIN_ERROR), { data: { detail: PIN_ERROR } });
@@ -246,7 +239,7 @@ export const api = {
     return res.json();
   },
   hubDashboard: () => request("/api/hub/dashboard/"),
-  /** URL EventSource — JWT en query (pas de header Authorization possible). */
+  /** URL EventSource - JWT en query (pas de header Authorization possible). */
   hubEventsUrl() {
     const access = encodeURIComponent(store.access || "");
     return `${API_URL}/api/hub/events/?access=${access}`;
@@ -359,7 +352,7 @@ export const api = {
     request("/api/constantes/", { method: "POST", body: JSON.stringify(body) }),
 
   appointments: (params = "") => request(`/api/appointments/${params ? `?${params}` : ""}`),
-  /** RDV du jour (filtre client) — exclut les annulés. */
+  /** RDV du jour (filtre client) - exclut les annulés. */
   async appointmentsToday() {
     const data = await request("/api/appointments/");
     const raw = data?.results || data || [];

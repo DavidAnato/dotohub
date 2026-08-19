@@ -7,7 +7,7 @@ import { Empty } from "../components";
 import { Avatar } from "../components/Avatar";
 
 function formatHeure(debut?: string) {
-  if (!debut) return "—";
+  if (!debut) return "-";
   return new Date(debut).toLocaleTimeString("fr-FR", {
     hour: "2-digit",
     minute: "2-digit",
@@ -35,7 +35,7 @@ export default function Tournee() {
           <ClipboardList size={22} /> Tournée du jour
         </h1>
         <p className="muted small">
-          {todayLabel} — saisie des constantes sur le dossier patient
+          {todayLabel} - saisie des constantes sur le dossier patient
         </p>
       </header>
 

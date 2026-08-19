@@ -29,7 +29,7 @@ export function ConsentWaiting({
 }: {
   patientName?: string;
   emergency?: boolean;
-  /** Rôle du pro demandeur — adapte le message d'attente. */
+  /** Rôle du pro demandeur - adapte le message d'attente. */
   role?: string;
   onCancel?: () => void;
 }) {
@@ -47,7 +47,7 @@ export function ConsentWaiting({
           <ShieldAlert size={22} color="var(--emergency)" />
           <div>
             <strong style={{ color: "var(--emergency)" }}>
-              Accès urgence sans consentement — journalisé
+              Accès urgence sans consentement - journalisé
             </strong>
             <p className="muted small" style={{ margin: "6px 0 0" }}>
               Ouverture limitée (groupe sanguin, allergies, chroniques, contacts).

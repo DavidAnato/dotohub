@@ -175,7 +175,7 @@ function Layout() {
       }
       if (ev.type === "access_pending" && ev.patient_id) {
         if (ev.access_request_id) setPendingAccessId(ev.access_request_id);
-        setToast("Demande envoyée au patient — en attente de confirmation…");
+        setToast("Demande envoyée au patient - en attente de confirmation…");
         nav(`/patient/${ev.patient_id}`);
         return;
       }
@@ -184,8 +184,8 @@ function Layout() {
         const label = ev.full_name || ev.npi || `#${ev.patient_id}`;
         setToast(
           ev.emergency
-            ? `Accès urgence — ${label}`
-            : `Accès autorisé — ouverture du dossier ${label}`
+            ? `Accès urgence - ${label}`
+            : `Accès autorisé - ouverture du dossier ${label}`
         );
         invalidatePatientMedical(qc, ev.patient_id);
         nav(`/patient/${ev.patient_id}`);
@@ -225,8 +225,8 @@ function Layout() {
         const label = ev.full_name || ev.npi || `#${ev.patient_id}`;
         setToast(
           ev.consent_required
-            ? `Scan DotoCard — en attente de consentement · ${label}`
-            : `Scan DotoCard — ouverture du dossier ${label}`
+            ? `Scan DotoCard - en attente de consentement · ${label}`
+            : `Scan DotoCard - ouverture du dossier ${label}`
         );
         invalidatePatientMedical(qc, ev.patient_id);
         nav(`/patient/${ev.patient_id}`);
@@ -393,7 +393,7 @@ export default function App() {
     if (!user) return;
     const onVis = () => {
       if (document.visibilityState === "hidden") {
-        // Ne pas verrouiller tout de suite — mémoriser le départ
+        // Ne pas verrouiller tout de suite - mémoriser le départ
         hiddenAt.current = Date.now();
         if (idleTimer.current) window.clearTimeout(idleTimer.current);
         return;

@@ -1,4 +1,4 @@
-/** SSE + helpers — online/theme vivent désormais dans le store Zustand. */
+/** SSE + helpers - online/theme vivent désormais dans le store Zustand. */
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 
@@ -29,7 +29,7 @@ export type HubSseEvent = {
 };
 
 /**
- * Connexion SSE DotoHub — JWT via query `?access=` (EventSource ne gère pas Authorization).
+ * Connexion SSE DotoHub - JWT via query `?access=` (EventSource ne gère pas Authorization).
  * Canal ciblé par user_id côté backend : seul le même compte pro reçoit les events.
  */
 export function useHubSSE(

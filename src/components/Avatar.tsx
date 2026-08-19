@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-/** Avatar circulaire — photo ou fallback premium (dégradé + initiales). */
+/** Avatar circulaire - photo ou fallback premium (dégradé + initiales). */
 export function Avatar({
   src,
   name,

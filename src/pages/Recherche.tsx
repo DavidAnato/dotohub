@@ -41,7 +41,7 @@ export default function Recherche() {
         loadRead<any[]>("search:" + query) || loadRead<any[]>("search:last") || [];
       if (cached.length) {
         setResults(cached);
-        setMsg("Hors ligne — liste patients en cache.");
+        setMsg("Hors ligne - liste patients en cache.");
       } else {
         setMsg(e?.data?.detail || "Erreur de recherche.");
       }
@@ -57,7 +57,7 @@ export default function Recherche() {
       try {
         const res = await api.requestAccess(patientId, { emergency: true });
         if (res?.emergency || res?.status === "emergency_bypass") {
-          setMsg("Accès urgence sans consentement — journalisé.");
+          setMsg("Accès urgence sans consentement - journalisé.");
         }
         nav(`/patient/${patientId}`);
       } catch (e: any) {
@@ -67,7 +67,7 @@ export default function Recherche() {
       }
       return;
     }
-    // Pas de demande d'accès auto — le dossier affiche les infos de base.
+    // Pas de demande d'accès auto - le dossier affiche les infos de base.
     nav(`/patient/${patientId}`);
   };
 
@@ -77,9 +77,9 @@ export default function Recherche() {
     try {
       const res = await api.scan(raw.trim(), emergency);
       if (res.consent_required) {
-        setMsg("Demande envoyée au patient — en attente de confirmation…");
+        setMsg("Demande envoyée au patient - en attente de confirmation…");
       } else if (res.emergency || emergency) {
-        setMsg("Accès urgence sans consentement — journalisé.");
+        setMsg("Accès urgence sans consentement - journalisé.");
       }
       nav(`/patient/${res.patient_id}`);
     } catch (e: any) {
@@ -121,7 +121,7 @@ export default function Recherche() {
       setMsg(
         e?.message?.includes("Permission") || e?.name === "NotAllowedError"
           ? "Autorisez l'accès à la caméra dans le navigateur."
-          : "Caméra indisponible — collez le token ou utilisez une douchette."
+          : "Caméra indisponible - collez le token ou utilisez une douchette."
       );
     }
   };
@@ -164,7 +164,7 @@ export default function Recherche() {
                 Mode urgence
               </strong>
               <p className="small muted" style={{ margin: "2px 0 0" }}>
-                Bypass consentement — accès limité journalisé (scan &amp; demande d&apos;accès).
+                Bypass consentement - accès limité journalisé (scan &amp; demande d&apos;accès).
               </p>
             </div>
           </div>
@@ -179,7 +179,7 @@ export default function Recherche() {
                 }
                 if (
                   !window.confirm(
-                    "Activer le mode urgence ? Bypass consentement — accès limité et journalisé."
+                    "Activer le mode urgence ? Bypass consentement - accès limité et journalisé."
                   )
                 ) {
                   return;
@@ -287,7 +287,7 @@ export default function Recherche() {
                       {p.full_name}
                     </span>
                   </td>
-                  <td>{p.date_naissance || "—"}</td>
+                  <td>{p.date_naissance || "-"}</td>
                   <td>
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                       <span className="pill red">{p.groupe_sanguin || "Non identifié"}</span>

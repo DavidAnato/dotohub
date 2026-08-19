@@ -53,7 +53,7 @@ export function HospitalPicker({
         value={principalId}
         onChange={(e) => onChangePrincipal(e.target.value ? Number(e.target.value) : "")}
       >
-        <option value="">—</option>
+        <option value="">-</option>
         {hospitals
           .filter((h) => pickedIds.includes(h.id))
           .map((h) => (

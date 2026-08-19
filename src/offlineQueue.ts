@@ -1,6 +1,6 @@
 /**
  * File d'actions hors-ligne DotoHub web (localStorage) + replay à la reconnexion.
- * Conflit : last-write / timestamp — le serveur renvoie 409 si `client_updated_at` est stale.
+ * Conflit : last-write / timestamp - le serveur renvoie 409 si `client_updated_at` est stale.
  */
 export type OfflineAction = {
   id: string;

@@ -106,7 +106,7 @@ type GateProps = {
   subtitle?: string;
 };
 
-/** Modal plein écran — configuration ou déverrouillage PIN session Hub. */
+/** Modal plein écran - configuration ou déverrouillage PIN session Hub. */
 export function PinSessionGate({
   mode,
   error,
@@ -199,7 +199,7 @@ export function PinSessionGate({
         {mode === "unlock" ? (
           <p className="pin-hint small muted" style={{ marginTop: 20 }}>
             <Fingerprint size={14} style={{ verticalAlign: -2, marginRight: 6 }} />
-            Biométrie indisponible sur le web — PIN requis
+            Biométrie indisponible sur le web - PIN requis
           </p>
         ) : null}
       </div>

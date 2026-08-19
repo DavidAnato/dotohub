@@ -1,4 +1,4 @@
-/** Constantes partagées DotoHub — alignées sur `core/contracts.py`. */
+/** Constantes partagées DotoHub - alignées sur `core/contracts.py`. */
 
 export const HOSPITAL_REQUIRED_ROLES = [
   "medecin",
@@ -13,8 +13,11 @@ export function needsHospitalAttach(user?: {
   role?: string;
   structures?: { id?: number }[] | null;
   structure_principale?: number | null;
+  type_exercice?: string | null;
+  nom_etablissement?: string | null;
 } | null): boolean {
   if (!user || !HOSPITAL_REQUIRED_ROLES.includes(user.role as any)) return false;
+  if (user.type_exercice === "independant" && (user.nom_etablissement || "").trim()) return false;
   const ids = user.structures || [];
   return !ids.length || !user.structure_principale;
 }
@@ -80,7 +83,7 @@ export const MEDICAMENT_FORMES = [
 ];
 
 export const MEDICAMENT_MOMENTS = [
-  { value: "", label: "—" },
+  { value: "", label: "-" },
   { value: "a_jeun", label: "À jeun" },
   { value: "avant_repas", label: "Avant les repas" },
   { value: "pendant_repas", label: "Pendant les repas" },
@@ -97,7 +100,7 @@ export const BON_STATUTS: Record<string, { label: string; cls: string }> = {
   cloture: { label: "Clôturé", cls: "gray" },
 };
 
-/** Date/heure « maintenant » — à utiliser dans les formulaires, jamais hardcodé. */
+/** Date/heure « maintenant » - à utiliser dans les formulaires, jamais hardcodé. */
 export function nowISO(): string {
   return new Date().toISOString();
 }
@@ -153,7 +156,7 @@ export function summarizeMed(m: MedLine): string {
       : "";
   const duree = m.duree_jours ? `pendant ${m.duree_jours} jour${Number(m.duree_jours) > 1 ? "s" : ""}` : "";
   const moment = MEDICAMENT_MOMENTS.find((x) => x.value === m.moment)?.label;
-  return [m.nom, m.dosage, m.forme, m.quantite, poso, duree, moment && moment !== "—" ? moment : ""]
+  return [m.nom, m.dosage, m.forme, m.quantite, poso, duree, moment && moment !== "-" ? moment : ""]
     .filter(Boolean)
-    .join(" — ");
+    .join(" - ");
 }

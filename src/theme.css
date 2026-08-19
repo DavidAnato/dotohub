@@ -1,8 +1,8 @@
-/* DotoHub — identité santé navy / teal médical, contraste fort, surfaces sobres. */
+/* DotoHub - identité santé navy / teal médical, contraste fort, surfaces sobres. */
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&display=swap");
 
 :root {
-  /* Marque — ne jamais inverser en dark */
+  /* Marque - ne jamais inverser en dark */
   --brand-navy: #1e3755;
   --brand-navy-deep: #132438;
   --brand-navy-mid: #2a4a6e;
@@ -25,14 +25,14 @@
   --emergency: #b42318;
   --emergency-soft: #fde8e8;
 
-  /* Surfaces — clair clinique, pas cream */
+  /* Surfaces - clair clinique, pas cream */
   --bg: #e9eef4;
   --surface: #ffffff;
   --surface-2: #f4f7fa;
   --border: #c5d0de;
   --border-strong: #9aadc2;
   --text: #132438;
-  --muted: #3d5168;
+  --muted: #334155;
   --radius: 12px;
   --radius-sm: 8px;
   --shadow: 0 1px 2px rgba(19, 36, 56, 0.06);
@@ -151,6 +151,22 @@ button {
   max-width: 168px;
   object-fit: contain;
   display: block;
+  filter: brightness(0) invert(1);
+}
+.login-brand img,
+.login-card img {
+  filter: brightness(0);
+}
+html[data-theme="dark"] .login-brand img,
+html[data-theme="dark"] .login-card img {
+  filter: brightness(0) invert(1);
+}
+.hub-hero-badge img {
+  height: 32px;
+  filter: brightness(0);
+}
+html[data-theme="dark"] .hub-hero-badge img {
+  filter: brightness(0) invert(1);
 }
 
 .brand .mark {
@@ -446,7 +462,7 @@ button {
   line-height: 1.35;
 }
 
-/* Statuts — coins nets, pas rounded-full */
+/* Statuts - coins nets, pas rounded-full */
 .pill {
   display: inline-flex;
   align-items: center;
@@ -1012,7 +1028,7 @@ html[data-theme="dark"] .btn:hover {
   background: #3e8295;
 }
 html[data-theme="dark"] .btn.ghost {
-  color: var(--text);
+  color: #e8eef4;
   border-color: var(--border);
   background: transparent;
 }

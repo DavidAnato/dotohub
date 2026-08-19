@@ -434,7 +434,7 @@ export default function Patient() {
     );
   }
 
-  // Infos de base uniquement — pas de demande auto.
+  // Infos de base uniquement - pas de demande auto.
   if (needsAccess && !pending) {
     return (
       <div>
@@ -580,7 +580,7 @@ function Historique({ patientId }: { patientId: number }) {
       {items.map((c) => (
         <div className="card" key={c.id}>
           <div className="row" style={{ justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-            <strong>{c.titre || `${c.specialite || "Consultation"} — ${formatDateFR(c.date)}`}</strong>
+            <strong>{c.titre || `${c.specialite || "Consultation"} - ${formatDateFR(c.date)}`}</strong>
             <span className="pill blue">{c.type_label}</span>
           </div>
           <div className="small muted" style={{ marginTop: 4 }}>
@@ -707,8 +707,8 @@ function Historique({ patientId }: { patientId: number }) {
             <div className="card" style={{ marginBottom: 12, background: "var(--surface-2, transparent)" }}>
               <strong>Récapitulatif</strong>
               <p className="small" style={{ marginTop: 6, lineHeight: 1.5 }}>
-                {form.specialite} — {user?.full_name || "Médecin"} —{" "}
-                {structures.find((s) => String(s.id) === form.structure)?.nom || "—"} — {formatDateFR(nowISO())}
+                {form.specialite} - {user?.full_name || "Médecin"} -{" "}
+                {structures.find((s) => String(s.id) === form.structure)?.nom || "-"} - {formatDateFR(nowISO())}
                 <br />
                 {PRISE_EN_CHARGE.find((t) => t.value === form.type)?.label}
                 {form.motif ? ` · ${form.motif}` : ""}
@@ -779,15 +779,15 @@ function Ordonnances({ patientId, patientName }: { patientId: number; patientNam
   };
 
   const confirmDispense = (id: number) => {
-    if (!window.confirm("Marquer cette ordonnance comme dispensée ?")) return;
+    if (!window.confirm("Marquer cette ordonnance comme payée ?")) return;
     dispenseMut.mutate(id, {
-      onSuccess: () => setToast("Ordonnance dispensée"),
+      onSuccess: () => setToast("Ordonnance payée"),
       onError: (e: any) => setToast(e?.data?.detail || e?.message || "Échec"),
     });
   };
 
   const confirmAnnuler = (id: number) => {
-    if (!window.confirm("Annuler cette ordonnance ? Elle ne pourra plus être dispensée.")) return;
+    if (!window.confirm("Annuler cette ordonnance ? Elle ne pourra plus être payée.")) return;
     annulerMut.mutate(id, {
       onSuccess: () => setToast("Ordonnance annulée"),
       onError: (e: any) => setToast(e?.data?.detail || e?.message || "Échec"),
@@ -795,9 +795,9 @@ function Ordonnances({ patientId, patientName }: { patientId: number; patientNam
   };
 
   const confirmAnnulerDispense = (id: number) => {
-    if (!window.confirm("Annuler la dispense ? L'ordonnance redeviendra active.")) return;
+    if (!window.confirm("Annuler le paiement ? L'ordonnance redeviendra active.")) return;
     annulerDispenseMut.mutate(id, {
-      onSuccess: () => setToast("Dispense annulée"),
+      onSuccess: () => setToast("Paiement annulé"),
       onError: (e: any) => setToast(e?.data?.detail || e?.message || "Échec"),
     });
   };
@@ -843,8 +843,8 @@ function Ordonnances({ patientId, patientName }: { patientId: number; patientNam
                   MEDICAMENT_MOMENTS.find((x) => x.value === m.moment)?.label,
                   m.instructions,
                 ]
-                  .filter((x) => x && x !== "—")
-                  .map((x) => ` — ${x}`)
+                  .filter((x) => x && x !== "-")
+                  .map((x) => ` - ${x}`)
                   .join("")}
               </li>
             ))}
@@ -863,17 +863,17 @@ function Ordonnances({ patientId, patientName }: { patientId: number; patientNam
                 disabled={dispenseMut.isPending}
                 onClick={() => confirmDispense(o.id)}
               >
-                Marquer dispensée
+                Marquer payée
               </button>
             )}
-            {user?.role === "pharmacien" && o.statut === "dispensee" && (
+            {user?.role === "pharmacien" && (o.statut === "dispensee" || o.statut === "payee") && (
               <button
                 className="btn ghost sm"
                 type="button"
                 disabled={annulerDispenseMut.isPending}
                 onClick={() => confirmAnnulerDispense(o.id)}
               >
-                Annuler la dispense
+                Annuler le paiement
               </button>
             )}
             {canWrite && o.statut === "active" && (
@@ -905,7 +905,7 @@ function Ordonnances({ patientId, patientName }: { patientId: number; patientNam
             </div>
             <div className="settings-modal-body">
               <p className="muted small" style={{ marginBottom: 12 }}>
-                Pour <strong>{patientName || "ce patient"}</strong> — pas besoin de resaisir l&apos;identité.
+                Pour <strong>{patientName || "ce patient"}</strong> - pas besoin de resaisir l&apos;identité.
               </p>
               {step === "preview" ? (
                 <div>
@@ -1414,7 +1414,7 @@ function Examens({ patientId, patientName }: { patientId: number; patientName?: 
             </div>
             <div className="settings-modal-body">
               <p className="muted small" style={{ marginBottom: 12 }}>
-                Pour <strong>{patientName || "ce patient"}</strong> — identité déjà connue.
+                Pour <strong>{patientName || "ce patient"}</strong> - identité déjà connue.
               </p>
               <div className="grid cols-2" style={{ gap: 10 }}>
                 <input
@@ -1516,11 +1516,11 @@ function Constantes({ patientId }: { patientId: number }) {
                   <td>
                     {c.tension_systolique && c.tension_diastolique
                       ? `${c.tension_systolique}/${c.tension_diastolique}`
-                      : "—"}
+                      : "-"}
                   </td>
-                  <td>{c.temperature ? `${c.temperature}°C` : "—"}</td>
-                  <td>{c.poids ? `${c.poids} kg` : "—"}</td>
-                  <td>{c.glycemie ? `${c.glycemie}` : "—"}</td>
+                  <td>{c.temperature ? `${c.temperature}°C` : "-"}</td>
+                  <td>{c.poids ? `${c.poids} kg` : "-"}</td>
+                  <td>{c.glycemie ? `${c.glycemie}` : "-"}</td>
                   <td className="small muted">{c.infirmier_nom}</td>
                 </tr>
               ))}

@@ -166,7 +166,7 @@ export default function NouveauPatient() {
           {isEdit ? "Modifier le patient" : "Nouveau patient"}
         </h1>
         <p className="muted small">
-          Identité ANIP (NPI 10 chiffres) et coordonnées — réception / admin / médecin.
+          Identité ANIP (NPI 10 chiffres) et coordonnées - réception / admin / médecin.
         </p>
       </header>
 

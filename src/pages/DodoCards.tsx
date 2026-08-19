@@ -30,7 +30,7 @@ export default function DodoCards() {
           <div>
             <h1>DotoCard</h1>
             <p className="muted">
-              Cartes d&apos;accès QR. Le QR ne contient qu&apos;un token chiffré — jamais de données
+              Cartes d&apos;accès QR. Le QR ne contient qu&apos;un token chiffré - jamais de données
               médicales. En cas de perte, le token est révoqué en moins d&apos;une minute.
             </p>
           </div>

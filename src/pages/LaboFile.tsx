@@ -259,7 +259,7 @@ export default function LaboFile() {
                   {x.categorie_label || x.categorie}
                   {x.laboratoire ? ` · ${x.laboratoire}` : ""}
                   {" · "}
-                  {x.date ? new Date(x.date).toLocaleDateString("fr-FR") : "—"}
+                  {x.date ? new Date(x.date).toLocaleDateString("fr-FR") : "-"}
                 </div>
                 {x.resultat_texte ? (
                   <p style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>{x.resultat_texte}</p>
@@ -335,7 +335,7 @@ export default function LaboFile() {
                 <div style={{ gridColumn: "1 / -1" }}>
                   <label className="label">Patient</label>
                   <p className="muted small" style={{ marginBottom: 6 }}>
-                    Recherche par nom ou NPI — pas d&apos;ID technique
+                    Recherche par nom ou NPI - pas d&apos;ID technique
                   </p>
                   <PatientSelectSearch
                     value={form.patient}
@@ -462,7 +462,7 @@ export default function LaboFile() {
             </div>
             <div className="settings-modal-body">
               <p className="muted small">
-                Bon #{depositBon.id} · {depositBon.patient_nom} —{" "}
+                Bon #{depositBon.id} · {depositBon.patient_nom} -{" "}
                 {(depositBon.lignes || []).map((l: any) => l.type_examen).join(", ")}
               </p>
               <label className="label">Résultat (texte)</label>

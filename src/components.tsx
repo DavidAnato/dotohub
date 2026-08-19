@@ -48,12 +48,12 @@ export function UrgenceHeader({ u }: { u: any }) {
       </div>
       <div className="critical-meta">
         <div className="small muted">Contact d&apos;urgence</div>
-        <div style={{ fontWeight: 700 }}>{u.contact_urgence_nom || "—"}</div>
+        <div style={{ fontWeight: 700 }}>{u.contact_urgence_nom || "-"}</div>
         <div className="small mono">{u.tel_urgence}</div>
       </div>
       <div className="critical-meta">
         <div className="small muted">Assureur</div>
-        <div style={{ fontWeight: 700 }}>{u.assureur || "—"}</div>
+        <div style={{ fontWeight: 700 }}>{u.assureur || "-"}</div>
         <div className="small mono">{u.num_police}</div>
       </div>
     </div>
@@ -75,13 +75,14 @@ export function StatusBadge({ status }: { status: string }) {
     eleve: "amber",
     critique: "red",
     dispensee: "blue",
+    payee: "blue",
     terminee: "blue",
     annulee: "red",
     annule: "red",
     planifie: "amber",
     confirme: "green",
   };
-  return <span className={`pill ${map[status] || "blue"}`}>{status}</span>;
+  return <span className={`pill ${map[status] || "blue"}`}>{status === "payee" || status === "dispensee" ? "Payé" : status}</span>;
 }
 
 export function Skeleton({ height = 16, width = "100%", className = "" }: {
@@ -103,7 +104,7 @@ export function OfflineBanner({ online }: { online: boolean }) {
   return (
     <div className="offline-banner" role="status">
       <WifiOff size={16} strokeWidth={2} aria-hidden />
-      Mode hors ligne — lecture cache, file d'actions en attente de reconnexion.
+      Mode hors ligne - lecture cache, file d'actions en attente de reconnexion.
     </div>
   );
 }

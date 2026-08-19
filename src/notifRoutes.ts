@@ -1,4 +1,4 @@
-/** Deep-link notifications — aligné sur `core/contracts.py` NOTIFICATION_ROUTES. */
+/** Deep-link notifications - aligné sur `core/contracts.py` NOTIFICATION_ROUTES. */
 
 export type NotifLike = {
   type?: string;
@@ -12,6 +12,9 @@ const KIND_TO_TYPE: Record<string, string> = {
   consultation_annulee: "dossier_updated",
   ordonnance: "ordonnance",
   ordonnance_dispensee: "ordonnance",
+  ordonnance_payee: "ordonnance",
+  kyc_updated: "notifications",
+  affiliation_updated: "notifications",
   examen: "examen",
   examen_fichier: "examen",
   bon_examen: "bon_examen",

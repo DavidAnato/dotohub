@@ -152,7 +152,7 @@ export default function RendezVous() {
                   <div className="small muted row" style={{ gap: 8, alignItems: "center", marginTop: 6 }}>
                     <Avatar src={a.patient_photo_url} name={a.patient_name} size={28} />
                     <span>
-                      {a.debut ? new Date(a.debut).toLocaleString("fr-FR") : "—"} · {a.patient_name}
+                      {a.debut ? new Date(a.debut).toLocaleString("fr-FR") : "-"} · {a.patient_name}
                       {a.patient_npi ? ` (${a.patient_npi})` : ""}
                       {a.professionnel_nom ? ` · Dr ${a.professionnel_nom}` : " · Réception"}
                       {a.structure_nom ? ` · ${a.structure_nom}` : ""}
