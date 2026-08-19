@@ -129,7 +129,7 @@ export function HospitalAttachGate({
           <h2 id="hospital-gate-title">Votre exercice</h2>
           <p className="muted">D’abord le type, ensuite seulement les champs utiles.</p>
         </div>
-        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}>
+        <div className="auth-step2__scroll">
           <p className="label" id="gate-kind-label">
             Type d'exercice
           </p>

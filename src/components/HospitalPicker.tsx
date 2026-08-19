@@ -1,9 +1,7 @@
-import { useMemo, useState } from "react";
-import { Search, Star, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, Search, Star, X } from "lucide-react";
 
 type Hospital = { id: number; nom: string; commune?: string; department?: string };
-
-const PREVIEW = 8;
 
 function hospitalLabel(h: Hospital) {
   return h.commune ? `${h.nom} · ${h.commune}` : h.nom;
@@ -15,7 +13,6 @@ export function HospitalPicker({
   principalId,
   onChangePicked,
   onChangePrincipal,
-  maxHeight = 260,
 }: {
   hospitals: Hospital[];
   pickedIds: number[];
@@ -25,6 +22,9 @@ export function HospitalPicker({
   maxHeight?: number;
 }) {
   const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const query = q.trim().toLowerCase();
 
   const picked = useMemo(
@@ -40,8 +40,23 @@ export function HospitalPicker({
     });
   }, [hospitals, query]);
 
-  const visible = query ? filtered : filtered.slice(0, PREVIEW);
-  const hiddenCount = query ? 0 : Math.max(0, filtered.length - visible.length);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    const t = window.setTimeout(() => searchRef.current?.focus(), 0);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+      window.clearTimeout(t);
+    };
+  }, [open]);
 
   const applyNext = (next: number[]) => {
     onChangePicked(next);
@@ -57,7 +72,7 @@ export function HospitalPicker({
   };
 
   return (
-    <div className="hpicker">
+    <div className="hpicker" ref={wrapRef}>
       {picked.length ? (
         <div className="hpicker-chips" role="list" aria-label="Établissements choisis">
           {picked.map((h) => {
@@ -79,7 +94,7 @@ export function HospitalPicker({
                   }
                   onClick={() => onChangePrincipal(h.id)}
                 >
-                  <Star size={14} fill={principal ? "currentColor" : "none"} />
+                  <Star size={15} fill={principal ? "currentColor" : "none"} />
                 </button>
                 <span title={hospitalLabel(h)}>{h.nom}</span>
                 <button
@@ -94,64 +109,66 @@ export function HospitalPicker({
             );
           })}
         </div>
-      ) : (
-        <p className="muted hpicker-empty">Aucun établissement choisi pour l’instant.</p>
-      )}
-
-      <label className="hpicker-search">
-        <Search size={16} aria-hidden />
-        <span className="sr-only">Rechercher un établissement</span>
-        <input
-          className="input"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Rechercher par nom ou ville"
-          autoComplete="off"
-        />
-      </label>
+      ) : null}
 
       {!hospitals.length ? (
         <p className="muted hpicker-empty">Catalogue indisponible. Saisissez le nom ci-dessous.</p>
-      ) : !visible.length ? (
-        <p className="muted hpicker-empty">Aucun établissement pour « {q.trim()} ».</p>
       ) : (
-        <div className="hpicker-list" style={{ maxHeight }} role="listbox" aria-label="Catalogue">
-          {visible.map((h) => {
-            const on = pickedIds.includes(h.id);
-            const principal = principalId === h.id;
-            return (
-              <div key={h.id} className={"hpicker-row" + (on ? " is-on" : "")} role="option" aria-selected={on}>
-                <label className="hpicker-row__pick">
-                  <input type="checkbox" checked={on} onChange={() => toggle(h.id)} />
-                  <span>
-                    {h.nom}
-                    {h.commune ? <em> · {h.commune}</em> : null}
-                  </span>
-                </label>
-                {on ? (
-                  <button
-                    type="button"
-                    className={"hpicker-star" + (principal ? " on" : "")}
-                    aria-pressed={principal}
-                    aria-label={
-                      principal ? "Établissement principal" : `Définir ${h.nom} comme principal`
-                    }
-                    onClick={() => onChangePrincipal(h.id)}
-                  >
-                    <Star size={16} fill={principal ? "currentColor" : "none"} />
-                    <span>{principal ? "Principal" : "Principal ?"}</span>
-                  </button>
-                ) : null}
-              </div>
-            );
-          })}
+        <div className="hpicker-combo">
+          <button
+            type="button"
+            className="hpicker-trigger"
+            aria-expanded={open}
+            aria-haspopup="listbox"
+            aria-controls="hpicker-menu"
+            onClick={() => setOpen((v) => !v)}
+          >
+            <Search size={16} aria-hidden />
+            <span>{picked.length ? "Ajouter un établissement" : "Choisir un établissement"}</span>
+            <ChevronDown size={18} aria-hidden className={open ? "is-open" : undefined} />
+          </button>
+
+          {open ? (
+            <div className="hpicker-menu" id="hpicker-menu">
+              <label className="hpicker-search">
+                <Search size={16} aria-hidden />
+                <span className="sr-only">Rechercher un établissement</span>
+                <input
+                  ref={searchRef}
+                  className="input"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Rechercher par nom ou ville"
+                  autoComplete="off"
+                />
+              </label>
+              {!filtered.length ? (
+                <p className="muted hpicker-empty hpicker-empty--menu">
+                  Aucun établissement pour « {q.trim()} ».
+                </p>
+              ) : (
+                  <div className="hpicker-list" role="listbox" aria-label="Catalogue" aria-multiselectable="true">
+                  {filtered.map((h) => {
+                    const on = pickedIds.includes(h.id);
+                    return (
+                      <div key={h.id} className={"hpicker-row" + (on ? " is-on" : "")} role="option" aria-selected={on}>
+                        <label className="hpicker-row__pick">
+                          <input type="checkbox" checked={on} onChange={() => toggle(h.id)} />
+                          <span>
+                            {h.nom}
+                            {h.commune ? <em> · {h.commune}</em> : null}
+                          </span>
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
       )}
-      {hiddenCount ? (
-        <p className="muted hpicker-more">
-          {hiddenCount} autre{hiddenCount > 1 ? "s" : ""} dans le catalogue. Tapez pour affiner.
-        </p>
-      ) : null}
+
       {picked.length ? (
         <p className="muted hpicker-hint">
           L’étoile désigne le principal : lieu proposé par défaut en consultation.

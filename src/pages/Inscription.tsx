@@ -476,10 +476,6 @@ export default function Inscription() {
                 {busy ? "Création…" : "Créer le compte"}
               </button>
             </div>
-            <p className="auth-foot">
-              Compte créé tout de suite. Un admin valide ensuite l'affiliation. PIN à 4 chiffres à la
-              première session.
-            </p>
           </div>
         </form>
       )}

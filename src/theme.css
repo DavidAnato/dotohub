@@ -40,6 +40,8 @@
   --shadow: 0 1px 2px rgba(19, 36, 56, 0.06);
   --shadow-lg: 0 12px 32px rgba(19, 36, 56, 0.16);
   --glass: rgba(255, 255, 255, 0.92);
+  --auth-surface: var(--surface);
+  --star-on: #c9a227;
 
   /* Sidebar marque */
   --sidebar-from: #243f5c;
@@ -375,7 +377,7 @@ html[data-theme="dark"] .hub-hero-badge img {
   overflow: hidden;
   display: grid;
   grid-template-columns: minmax(280px, 1.05fr) minmax(360px, 1fr);
-  background: var(--surface);
+  background: var(--auth-surface);
 }
 .auth-shell--wide {
   grid-template-columns: minmax(280px, 0.92fr) minmax(420px, 1.08fr);
@@ -488,7 +490,7 @@ html[data-theme="dark"] .hub-hero-badge img {
   min-width: 0;
   overflow: hidden;
   padding: 0;
-  background: var(--surface);
+  background: var(--auth-surface);
 }
 .auth-panel__inner {
   width: min(440px, 100%);
@@ -533,14 +535,26 @@ html[data-theme="dark"] .hub-hero-badge img {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-right: 2px;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(19, 36, 56, 0.28) transparent;
+}
+.auth-step2__scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.auth-step2__scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.auth-step2__scroll::-webkit-scrollbar-thumb {
+  background: rgba(19, 36, 56, 0.28);
+  border-radius: 99px;
 }
 .auth-sticky {
   flex-shrink: 0;
   margin-top: 8px;
   padding-top: 12px;
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: var(--surface);
+  background: var(--auth-surface);
   border-top: 1px solid var(--border);
 }
 .auth-sticky .auth-foot {
@@ -559,7 +573,7 @@ html[data-theme="dark"] .hub-hero-badge img {
   padding: 14px 14px 4px;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: var(--surface-2);
+  background: var(--auth-surface);
 }
 .auth-group__title {
   font-size: 11px;
@@ -589,7 +603,7 @@ html[data-theme="dark"] .hub-hero-badge img {
   padding: 14px;
   border: 1px dashed var(--border-strong);
   border-radius: 14px;
-  background: var(--surface);
+  background: var(--auth-surface);
 }
 .auth-recap dl {
   margin: 0;
@@ -628,14 +642,14 @@ html[data-theme="dark"] .hub-hero-badge img {
   padding: 5px 6px 5px 8px;
   border-radius: 999px;
   border: 1px solid var(--border-strong);
-  background: var(--surface);
+  background: var(--auth-surface);
   font-size: 12.5px;
   font-weight: 650;
   color: var(--heading);
 }
 .hpicker-chip.is-principal {
-  border-color: var(--auth-teal);
-  background: rgba(43, 179, 188, 0.12);
+  border-color: var(--star-on);
+  background: var(--auth-surface);
 }
 .hpicker-chip span {
   overflow: hidden;
@@ -657,16 +671,57 @@ html[data-theme="dark"] .hub-hero-badge img {
   cursor: pointer;
 }
 .hpicker-chip.is-principal .hpicker-chip__star {
-  color: var(--auth-teal);
+  color: var(--star-on);
 }
 .hpicker-chip__x:hover {
   color: var(--emergency);
   background: var(--emergency-soft);
 }
+.hpicker-combo {
+  position: relative;
+}
+.hpicker-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+.hpicker-trigger:hover,
+.hpicker-trigger[aria-expanded="true"] {
+  border-color: var(--auth-teal);
+}
+.hpicker-trigger[aria-expanded="true"] {
+  box-shadow: 0 0 0 3px rgba(43, 179, 188, 0.22);
+}
+.hpicker-trigger svg:last-child {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+.hpicker-trigger svg:last-child.is-open {
+  transform: rotate(180deg);
+}
+.hpicker-menu {
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--auth-surface);
+  overflow: hidden;
+}
 .hpicker-search {
   position: relative;
   display: block;
-  margin-bottom: 10px;
+  margin: 8px 8px 0;
 }
 .hpicker-search svg {
   position: absolute;
@@ -680,10 +735,28 @@ html[data-theme="dark"] .hub-hero-badge img {
   padding-left: 36px;
 }
 .hpicker-list {
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  margin-top: 8px;
+  max-height: 220px;
   overflow: auto;
-  background: var(--surface);
+  background: var(--auth-surface);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(19, 36, 56, 0.28) transparent;
+}
+.hpicker-list::-webkit-scrollbar {
+  width: 6px;
+}
+.hpicker-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.hpicker-list::-webkit-scrollbar-thumb {
+  background: rgba(19, 36, 56, 0.28);
+  border-radius: 99px;
+}
+.hpicker-empty--menu {
+  margin: 10px 12px 12px;
 }
 .hpicker-row {
   display: flex;
@@ -906,9 +979,9 @@ html[data-theme="dark"] .hub-hero-badge img {
   cursor: pointer;
 }
 .kind-chip.on {
-  background: rgba(43, 179, 188, 0.12);
+  background: var(--auth-teal);
   border-color: var(--auth-teal);
-  color: var(--heading);
+  color: var(--auth-teal-ink);
 }
 .reg-error {
   color: var(--emergency);
@@ -1564,6 +1637,7 @@ html[data-theme="dark"] .critical-value {
 
 /* ─── Dark mode (optionnel, non forcé) ───────────────────── */
 html[data-theme="dark"] {
+  color-scheme: dark;
   --bg: #0c1219;
   --surface: #151c26;
   --surface-2: #1a2330;
@@ -1586,6 +1660,8 @@ html[data-theme="dark"] {
   --emergency: #f87171;
   --emergency-soft: #2a1518;
   --glass: rgba(12, 18, 25, 0.92);
+  --auth-surface: #151c26;
+  --star-on: #f5c518;
   --shadow: none;
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.45);
   --sidebar-from: #2a4a6e;
@@ -1594,6 +1670,17 @@ html[data-theme="dark"] {
 }
 html[data-theme="dark"] body {
   background: var(--bg);
+}
+html[data-theme="dark"] .auth-step2__scroll,
+html[data-theme="dark"] .hpicker-list,
+html[data-theme="dark"] .auth-panel__inner > form {
+  color-scheme: dark;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(248, 250, 252, 0.22) transparent;
+}
+html[data-theme="dark"] .auth-step2__scroll::-webkit-scrollbar-thumb,
+html[data-theme="dark"] .hpicker-list::-webkit-scrollbar-thumb {
+  background: rgba(248, 250, 252, 0.22);
 }
 html[data-theme="dark"] .topbar {
   border-bottom-color: var(--border);
@@ -1648,16 +1735,6 @@ html[data-theme="dark"] .hub-emergency-tip {
   border-color: #3f2528;
   border-left-color: #f87171;
 }
-html[data-theme="dark"] .auth-sticky {
-  background: var(--bg);
-}
-html[data-theme="dark"] .auth-group {
-  background: var(--surface);
-}
-html[data-theme="dark"] .hpicker-list,
-html[data-theme="dark"] .hpicker-chip {
-  background: var(--surface);
-}
 html[data-theme="dark"] .auth-submit {
   background: var(--auth-teal);
   color: var(--auth-teal-ink);
@@ -1669,15 +1746,19 @@ html[data-theme="dark"] .auth-switch a {
   color: #7dd3e0;
 }
 html[data-theme="dark"] .kind-chip.on {
-  background: rgba(43, 179, 188, 0.16);
+  background: var(--auth-teal);
   border-color: var(--auth-teal);
-  color: #eef2f7;
+  color: var(--auth-teal-ink);
+}
+html[data-theme="dark"] .hpicker-trigger {
+  background: var(--bg);
+  color: var(--muted);
 }
 html[data-theme="dark"] .auth-steps li {
   background: var(--surface);
 }
 html[data-theme="dark"] .pin-gate__card {
-  background: var(--surface);
+  background: var(--auth-surface);
 }
 html[data-theme="dark"] .input,
 html[data-theme="dark"] .select,
@@ -2058,7 +2139,7 @@ html[data-theme="dark"] .settings-modal-backdrop {
 }
 .pin-gate__card {
   width: min(420px, 100%);
-  background: var(--surface);
+  background: var(--auth-surface);
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 40px 32px 32px;
