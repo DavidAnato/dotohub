@@ -13,7 +13,7 @@ type Props = {
   logoAlt?: string;
 };
 
-/** Split SaaS : hero navy à gauche, formulaire à droite. */
+/** Split SaaS : hero navy à gauche, formulaire à droite (panneau scrollable, CTA collant si .auth-sticky). */
 export function AuthShell({
   kicker,
   headline,

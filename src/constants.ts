@@ -16,6 +16,19 @@ export const TYPE_EXERCICE = [
   { v: "independant", l: "Indépendant" },
 ] as const;
 
+export function typeExerciceHint(kind: string): string {
+  if (kind === "independant") {
+    return "Cabinet ou exercice libéral. Un nom suffit, sans liste d'hôpitaux.";
+  }
+  if (kind === "pharmacie") {
+    return "Choisissez la pharmacie dans le catalogue, ou saisissez son nom.";
+  }
+  if (kind === "laboratoire") {
+    return "Choisissez le laboratoire dans le catalogue, ou saisissez son nom.";
+  }
+  return "Choisissez un ou plusieurs établissements. L'étoile marque le principal, proposé par défaut en consultation.";
+}
+
 export const PRO_ROLES = [
   { v: "medecin", l: "Médecin" },
   { v: "infirmier", l: "Infirmier" },

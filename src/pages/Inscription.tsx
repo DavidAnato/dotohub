@@ -1,10 +1,10 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { AuthShell } from "../components/AuthShell";
 import { HospitalPicker } from "../components/HospitalPicker";
 import { PhoneInput } from "../components/PhoneInput";
-import { PRO_ROLES, TYPE_EXERCICE } from "../constants";
+import { PRO_ROLES, TYPE_EXERCICE, typeExerciceHint } from "../constants";
 import { useAppStore } from "../store/appStore";
 
 function firstError(data: any, fallback: string) {
@@ -38,9 +38,11 @@ export default function Inscription() {
   const [hospitals, setHospitals] = useState<any[]>([]);
   const [pickedIds, setPickedIds] = useState<number[]>([]);
   const [principalId, setPrincipalId] = useState<number | "">("");
+  const [horsCatalogue, setHorsCatalogue] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const independant = kind === "independant";
+  const showNomLibre = independant || horsCatalogue || !hospitals.length;
 
   useEffect(() => {
     api
@@ -71,6 +73,15 @@ export default function Inscription() {
     setStep(2);
   };
 
+  const chooseKind = (next: string) => {
+    setKind(next);
+    if (next === "independant") {
+      setPickedIds([]);
+      setPrincipalId("");
+      setHorsCatalogue(false);
+    }
+  };
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setErr("");
@@ -83,7 +94,7 @@ export default function Inscription() {
       return;
     }
     if (!independant && pickedIds.length && !principalId) {
-      setErr("Désignez l'établissement principal.");
+      setErr("Désignez l'établissement principal (étoile).");
       return;
     }
     setBusy(true);
@@ -119,6 +130,26 @@ export default function Inscription() {
     }
   };
 
+  const roleLabel = PRO_ROLES.find((r) => r.v === role)?.l || role;
+  const kindLabel = TYPE_EXERCICE.find((k) => k.v === kind)?.l || kind;
+  const principalNom = hospitals.find((h) => h.id === principalId)?.nom;
+  const pickedNoms = hospitals.filter((h) => pickedIds.includes(h.id)).map((h: any) => h.nom);
+  const recapLieu = independant
+    ? nomLibre.trim() || "Nom du cabinet à renseigner"
+    : pickedNoms.length
+      ? pickedNoms.length > 2
+        ? `${pickedNoms[0]} + ${pickedNoms.length - 1} autre${pickedNoms.length > 2 ? "s" : ""}`
+        : pickedNoms.join(", ")
+      : nomLibre.trim() || "Aucun établissement choisi";
+
+  const recapReady = useMemo(
+    () =>
+      independant
+        ? Boolean(nomLibre.trim())
+        : Boolean(pickedIds.length || nomLibre.trim()),
+    [independant, nomLibre, pickedIds.length]
+  );
+
   return (
     <AuthShell
       wide
@@ -127,7 +158,7 @@ export default function Inscription() {
       lede="Deux étapes. L’affiliation est ensuite validée par un administrateur."
       points={[
         { title: "Identité. ", text: "Nom, rôle et identifiants de connexion." },
-        { title: "Établissement. ", text: "Cabinet, clinique ou rattachement catalogue." },
+        { title: "Établissement. ", text: "Où vous exercez, puis vos numéros professionnels." },
         { title: "PIN ensuite. ", text: "Code à 4 chiffres à la première session." },
       ]}
     >
@@ -137,7 +168,7 @@ export default function Inscription() {
         <p className="muted">
           {step === 1
             ? "Nom, rôle et identifiants de compte."
-            : "Type, ville, établissement et numéros d'autorisation."}
+            : "D’abord le type, ensuite seulement les champs utiles."}
         </p>
         <ol className="auth-steps" aria-label="Étapes d'inscription">
           <li className={step === 1 ? "on" : "done"}>
@@ -243,21 +274,33 @@ export default function Inscription() {
           </button>
         </form>
       ) : (
-        <form onSubmit={submit}>
-          <p className="label">Type d'exercice</p>
-          <div className="kind-chips" role="group" aria-label="Type d'exercice">
-            {TYPE_EXERCICE.map((k) => (
-              <button
-                key={k.v}
-                type="button"
-                className={"kind-chip" + (kind === k.v ? " on" : "")}
-                onClick={() => setKind(k.v)}
-              >
-                {k.l}
-              </button>
-            ))}
+        <form className="auth-step2" onSubmit={submit}>
+          <div className="auth-step2__scroll">
+          <div className="field">
+            <p className="label" id="reg-kind-label">
+              Type d'exercice
+            </p>
+            <div className="kind-chips" role="radiogroup" aria-labelledby="reg-kind-label">
+              {TYPE_EXERCICE.map((k) => (
+                <button
+                  key={k.v}
+                  type="button"
+                  role="radio"
+                  aria-checked={kind === k.v}
+                  className={"kind-chip" + (kind === k.v ? " on" : "")}
+                  onClick={() => chooseKind(k.v)}
+                >
+                  {k.l}
+                </button>
+              ))}
+            </div>
+            <p className="muted auth-hint">{typeExerciceHint(kind)}</p>
           </div>
-          <div className="auth-grid" style={{ marginTop: 8 }}>
+
+          <section className="auth-group" aria-labelledby="reg-lieu-title">
+            <h2 className="auth-group__title" id="reg-lieu-title">
+              Où j'exerce
+            </h2>
             <div className="field">
               <label className="label" htmlFor="reg-ville">
                 Ville d'exercice
@@ -270,91 +313,174 @@ export default function Inscription() {
                 placeholder="Cotonou"
               />
             </div>
+            {independant ? (
+              <div className="field">
+                <label className="label" htmlFor="reg-etab">
+                  Nom du cabinet / exercice
+                </label>
+                <input
+                  id="reg-etab"
+                  className="input"
+                  value={nomLibre}
+                  onChange={(e) => setNomLibre(e.target.value)}
+                  placeholder="Cabinet Dr. Kpo"
+                  required
+                />
+              </div>
+            ) : (
+              <>
+                <div className="field">
+                  <p className="label">Établissements du catalogue</p>
+                  <HospitalPicker
+                    hospitals={hospitals}
+                    pickedIds={pickedIds}
+                    principalId={principalId}
+                    onChangePicked={setPickedIds}
+                    onChangePrincipal={setPrincipalId}
+                  />
+                </div>
+                {hospitals.length ? (
+                  <button
+                    type="button"
+                    className="auth-linkbtn"
+                    onClick={() => setHorsCatalogue((v) => !v)}
+                  >
+                    {horsCatalogue
+                      ? "Masquer le nom hors catalogue"
+                      : "Mon établissement n'est pas dans la liste"}
+                  </button>
+                ) : null}
+                {showNomLibre ? (
+                  <div className="field">
+                    <label className="label" htmlFor="reg-etab">
+                      Nom hors catalogue
+                    </label>
+                    <input
+                      id="reg-etab"
+                      className="input"
+                      value={nomLibre}
+                      onChange={(e) => setNomLibre(e.target.value)}
+                      placeholder="Clinique, pharmacie ou laboratoire"
+                    />
+                  </div>
+                ) : null}
+              </>
+            )}
+          </section>
+
+          <section className="auth-group" aria-labelledby="reg-ids-title">
+            <h2 className="auth-group__title" id="reg-ids-title">
+              Identifiants professionnels
+            </h2>
+            <p className="muted auth-hint">Facultatif. Utile pour la validation admin.</p>
+            <div className="auth-grid">
+              <div className="field">
+                <label className="label" htmlFor="reg-auth">
+                  N° Autorisation
+                </label>
+                <input
+                  id="reg-auth"
+                  className="input"
+                  value={autorisation}
+                  onChange={(e) => setAutorisation(e.target.value)}
+                  placeholder="890094/BEN"
+                />
+              </div>
+              <div className="field">
+                <label className="label" htmlFor="reg-ordre">
+                  N° Ordre National
+                </label>
+                <input
+                  id="reg-ordre"
+                  className="input"
+                  value={ordre}
+                  onChange={(e) => setOrdre(e.target.value)}
+                  placeholder="12345/ON/DEPT/2023"
+                />
+              </div>
+            </div>
             <div className="field">
-              <label className="label" htmlFor="reg-etab">
-                {independant ? "Nom du cabinet" : "Nom de l'établissement"}
+              <label className="label" htmlFor="reg-email">
+                Email professionnel
               </label>
               <input
-                id="reg-etab"
+                id="reg-email"
                 className="input"
-                value={nomLibre}
-                onChange={(e) => setNomLibre(e.target.value)}
-                placeholder="Clinique, pharmacie ou cabinet"
+                type="email"
+                value={emailPro}
+                onChange={(e) => setEmailPro(e.target.value)}
+                autoComplete="email"
               />
             </div>
+            <PhoneInput id="reg-ligne" label="Ligne professionnelle +229" value={lignePro} onChange={setLignePro} />
+          </section>
+
+          <section className="auth-recap" aria-labelledby="reg-recap-title">
+            <h2 className="auth-group__title" id="reg-recap-title">
+              Récapitulatif
+            </h2>
+            <dl>
+              <div>
+                <dt>Identité</dt>
+                <dd>
+                  {firstName} {lastName} · {roleLabel}
+                </dd>
+              </div>
+              <div>
+                <dt>Exercice</dt>
+                <dd>{kindLabel}</dd>
+              </div>
+              <div>
+                <dt>Lieu</dt>
+                <dd>{ville.trim() ? `${recapLieu} · ${ville.trim()}` : recapLieu}</dd>
+              </div>
+              {!independant && principalNom ? (
+                <div>
+                  <dt>Principal</dt>
+                  <dd>{principalNom}</dd>
+                </div>
+              ) : null}
+              {autorisation.trim() || ordre.trim() ? (
+                <div>
+                  <dt>N° pro</dt>
+                  <dd>{[autorisation.trim(), ordre.trim()].filter(Boolean).join(" · ")}</dd>
+                </div>
+              ) : null}
+              {emailPro.trim() || lignePro.trim() ? (
+                <div>
+                  <dt>Contact</dt>
+                  <dd>{[emailPro.trim(), lignePro.trim()].filter(Boolean).join(" · ")}</dd>
+                </div>
+              ) : null}
+            </dl>
+            {!recapReady ? (
+              <p className="muted auth-hint">Complétez le lieu d'exercice pour créer le compte.</p>
+            ) : null}
+          </section>
           </div>
-          <div className="auth-grid">
-            <div className="field">
-              <label className="label" htmlFor="reg-auth">
-                N° Autorisation
-              </label>
-              <input
-                id="reg-auth"
-                className="input"
-                value={autorisation}
-                onChange={(e) => setAutorisation(e.target.value)}
-                placeholder="890094/BEN"
-              />
+
+          <div className="auth-sticky">
+            {err ? <p className="auth-error">{err}</p> : null}
+            <div className="auth-actions">
+              <button
+                className="btn ghost"
+                type="button"
+                onClick={() => {
+                  setErr("");
+                  setStep(1);
+                }}
+              >
+                Retour
+              </button>
+              <button className="btn auth-submit" type="submit" disabled={busy}>
+                {busy ? "Création…" : "Créer le compte"}
+              </button>
             </div>
-            <div className="field">
-              <label className="label" htmlFor="reg-ordre">
-                N° Ordre National
-              </label>
-              <input
-                id="reg-ordre"
-                className="input"
-                value={ordre}
-                onChange={(e) => setOrdre(e.target.value)}
-                placeholder="12345/ON/DEPT/2023"
-              />
-            </div>
+            <p className="auth-foot">
+              Compte créé tout de suite. Un admin valide ensuite l'affiliation. PIN à 4 chiffres à la
+              première session.
+            </p>
           </div>
-          <div className="field">
-            <label className="label" htmlFor="reg-email">
-              Email professionnel
-            </label>
-            <input
-              id="reg-email"
-              className="input"
-              type="email"
-              value={emailPro}
-              onChange={(e) => setEmailPro(e.target.value)}
-              autoComplete="email"
-            />
-          </div>
-          <PhoneInput id="reg-ligne" label="Ligne professionnelle +229" value={lignePro} onChange={setLignePro} />
-          {!independant ? (
-            <div className="field" style={{ marginTop: 8 }}>
-              <label className="label">Établissements (plusieurs possibles, un principal)</label>
-              <HospitalPicker
-                hospitals={hospitals}
-                pickedIds={pickedIds}
-                principalId={principalId}
-                onChangePicked={setPickedIds}
-                onChangePrincipal={setPrincipalId}
-              />
-            </div>
-          ) : null}
-          {err ? <p className="auth-error">{err}</p> : null}
-          <div className="auth-actions">
-            <button
-              className="btn ghost"
-              type="button"
-              onClick={() => {
-                setErr("");
-                setStep(1);
-              }}
-            >
-              Retour
-            </button>
-            <button className="btn auth-submit" type="submit" disabled={busy}>
-              {busy ? "Création…" : "Créer le compte"}
-            </button>
-          </div>
-          <p className="auth-foot" style={{ marginTop: 16 }}>
-            Le compte est créé immédiatement. L'affiliation reste en attente de validation admin.
-            Le PIN à 4 chiffres se configure à la première connexion.
-          </p>
         </form>
       )}
 
