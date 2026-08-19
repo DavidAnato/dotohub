@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Lock } from "lucide-react";
 import { useAuth } from "../auth";
 
@@ -61,6 +61,9 @@ export default function Login() {
             {busy ? "Connexion…" : "Se connecter"}
           </button>
         </form>
+        <p className="login-switch">
+          Nouveau professionnel ? <Link to="/inscription">Créer un compte</Link>
+        </p>
         <p className="login-footnote small muted">
           <Lock size={13} strokeWidth={2} aria-hidden />
           Identifiant + mot de passe · JWT · démo{" "}

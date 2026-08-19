@@ -4,13 +4,7 @@ import { api } from "../api";
 import { HospitalPicker } from "./HospitalPicker";
 import { PhoneInput } from "./PhoneInput";
 import { useAppStore } from "../store/appStore";
-
-const KINDS = [
-  { v: "etablissement_sante", l: "Établissement de santé" },
-  { v: "pharmacie", l: "Pharmacie" },
-  { v: "laboratoire", l: "Laboratoire" },
-  { v: "independant", l: "Indépendant" },
-];
+import { TYPE_EXERCICE } from "../constants";
 
 /** Première connexion : inscription professionnelle (pas une nouvelle page). */
 export function HospitalAttachGate({
@@ -100,7 +94,7 @@ export function HospitalAttachGate({
         </p>
         <label className="label">Type</label>
         <select className="select" value={kind} onChange={(e) => setKind(e.target.value)}>
-          {KINDS.map((k) => (
+          {TYPE_EXERCICE.map((k) => (
             <option key={k.v} value={k.v}>
               {k.l}
             </option>

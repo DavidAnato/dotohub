@@ -16,6 +16,7 @@ import { canSeeAgenda, canSeeDodoCards } from "./roleNav";
 import { qk } from "./queries/keys";
 import { needsHospitalAttach, PIN_ERROR, PIN_REGEX } from "./constants";
 import Login from "./pages/Login";
+import Inscription from "./pages/Inscription";
 import Accueil from "./pages/Accueil";
 import Recherche from "./pages/Recherche";
 import Patient from "./pages/Patient";
@@ -472,6 +473,8 @@ export default function App() {
     <>
       <Routes>
         <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
+        <Route path="/inscription" element={user ? <Navigate to="/" /> : <Inscription />} />
+        <Route path="/register" element={<Navigate to="/inscription" replace />} />
         <Route element={<ProtectedLayout />}>
           <Route path="/" element={<Accueil />} />
           <Route path="/recherche" element={<Recherche />} />

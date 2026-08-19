@@ -360,6 +360,11 @@ html[data-theme="dark"] .hub-hero-badge img {
   border-color: transparent;
   padding: 28px 28px 24px;
 }
+.login-card--wide {
+  width: min(520px, 100%);
+  max-height: 92vh;
+  overflow: auto;
+}
 .login-brand {
   text-align: center;
   margin-bottom: 28px;
@@ -383,6 +388,58 @@ html[data-theme="dark"] .hub-hero-badge img {
   gap: 6px;
   text-align: center;
   margin-top: 18px;
+}
+.login-switch {
+  text-align: center;
+  margin-top: 16px;
+  font-size: 14px;
+}
+.login-switch a {
+  color: var(--brand-teal);
+  font-weight: 700;
+}
+.reg-steps {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.reg-steps .on {
+  color: var(--brand-teal);
+}
+.kind-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 4px;
+}
+.kind-chip {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface, #fff);
+  color: var(--heading);
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+}
+.kind-chip.on {
+  background: var(--brand-teal);
+  border-color: var(--brand-teal);
+  color: #fff;
+}
+.reg-error {
+  color: var(--emergency);
+  margin: 8px 0 12px;
+  font-weight: 600;
+}
+.reg-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
 }
 
 .input,

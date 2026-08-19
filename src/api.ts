@@ -184,6 +184,21 @@ export const api = {
     return user;
   },
 
+  async registerPro(payload: Record<string, unknown>) {
+    const data = await request("/api/auth/pro/register/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    store.set({ access: data.access, refresh: data.refresh });
+    const user = {
+      ...data.user,
+      pin_set: data.pin_set ?? data.user?.pin_set,
+      pending_validation: data.pending_validation ?? data.user?.pending_validation,
+    };
+    localStorage.setItem("doto_user", JSON.stringify(user));
+    return user;
+  },
+
   logout() {
     const hadToken = !!store.access;
     if (hadToken) {

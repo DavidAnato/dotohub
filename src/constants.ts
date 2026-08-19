@@ -9,6 +9,22 @@ export const HOSPITAL_REQUIRED_ROLES = [
   "receptionniste",
 ] as const;
 
+export const TYPE_EXERCICE = [
+  { v: "etablissement_sante", l: "Établissement de santé" },
+  { v: "pharmacie", l: "Pharmacie" },
+  { v: "laboratoire", l: "Laboratoire" },
+  { v: "independant", l: "Indépendant" },
+] as const;
+
+export const PRO_ROLES = [
+  { v: "medecin", l: "Médecin" },
+  { v: "infirmier", l: "Infirmier" },
+  { v: "pharmacien", l: "Pharmacien" },
+  { v: "laborantin", l: "Laborantin" },
+  { v: "ambulancier", l: "Ambulancier" },
+  { v: "receptionniste", l: "Réceptionniste" },
+] as const;
+
 export function needsHospitalAttach(user?: {
   role?: string;
   structures?: { id?: number }[] | null;

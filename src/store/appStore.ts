@@ -20,6 +20,10 @@ export interface HubUser {
   specialite?: string;
   structures?: { id?: number; nom: string }[];
   structure_principale?: number | null;
+  type_exercice?: string | null;
+  nom_etablissement?: string | null;
+  pending_validation?: boolean;
+  compte_statut?: string;
 }
 
 type AppState = {
@@ -48,6 +52,7 @@ type AppState = {
   setSessionLocked: (v: boolean) => void;
   setNeedsPinSetup: (v: boolean) => void;
   login: (username: string, password: string) => Promise<void>;
+  acceptSession: (user: HubUser) => void;
   logout: () => void;
   /** Déconnexion locale après échec refresh JWT (pas d'appel API logout). */
   sessionExpired: (message?: string) => void;
@@ -114,6 +119,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   login: async (username, password) => {
     const user = await api.loginPro(username, password);
+    get().acceptSession(user);
+  },
+  acceptSession: (user) => {
     const needsSetup = !user.pin_set;
     set({
       user,
