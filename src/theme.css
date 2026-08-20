@@ -719,20 +719,8 @@ html[data-theme="dark"] .hub-hero-badge img {
   overflow: hidden;
 }
 .hpicker-search {
-  position: relative;
   display: block;
   margin: 8px 8px 0;
-}
-.hpicker-search svg {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--muted);
-  pointer-events: none;
-}
-.hpicker-search .input {
-  padding-left: 36px;
 }
 .hpicker-list {
   border: 0;

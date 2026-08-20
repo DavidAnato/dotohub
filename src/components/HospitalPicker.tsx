@@ -131,14 +131,13 @@ export function HospitalPicker({
           {open ? (
             <div className="hpicker-menu" id="hpicker-menu">
               <label className="hpicker-search">
-                <Search size={16} aria-hidden />
                 <span className="sr-only">Rechercher un établissement</span>
                 <input
                   ref={searchRef}
                   className="input"
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
-                  placeholder="Rechercher par nom ou ville"
+                  placeholder="Rechercher…"
                   autoComplete="off"
                 />
               </label>
