@@ -1,8 +1,8 @@
 // En dev : URLs relatives → proxy Vite (évite CORS hotspot/LAN).
-// Prod / preprod : VITE_API_URL ou défaut Render.
+// Prod / preprod : VITE_API_URL ou défaut tunnel local (doto-anato).
 const API_URL =
   import.meta.env.VITE_API_URL ??
-  (import.meta.env.DEV ? "" : "https://doto-backend-71tk.onrender.com");
+  (import.meta.env.DEV ? "" : "https://doto-anato.loca.lt");
 
 import { PIN_ERROR, PIN_REGEX } from "./constants";
 
