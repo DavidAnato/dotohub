@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { AuthShell } from "../components/AuthShell";
 import { HospitalPicker } from "../components/HospitalPicker";
+import { PasswordInput } from "../components/PasswordInput";
 import { PhoneInput } from "../components/PhoneInput";
 import { PRO_ROLES, TYPE_EXERCICE, typeExerciceHint } from "../constants";
 import { useAppStore } from "../store/appStore";
@@ -244,10 +245,8 @@ export default function Inscription() {
               <label className="label" htmlFor="reg-pass">
                 Mot de passe
               </label>
-              <input
+              <PasswordInput
                 id="reg-pass"
-                className="input"
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="new-password"
@@ -258,10 +257,8 @@ export default function Inscription() {
               <label className="label" htmlFor="reg-pass2">
                 Confirmation
               </label>
-              <input
+              <PasswordInput
                 id="reg-pass2"
-                className="input"
-                type="password"
                 value={password2}
                 onChange={(e) => setPassword2(e.target.value)}
                 autoComplete="new-password"

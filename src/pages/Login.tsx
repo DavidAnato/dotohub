@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import { AuthShell } from "../components/AuthShell";
+import { PasswordInput } from "../components/PasswordInput";
 
 export default function Login() {
   const { login } = useAuth();
@@ -60,10 +61,8 @@ export default function Login() {
           <label className="label" htmlFor="hub-login-pass">
             Mot de passe
           </label>
-          <input
+          <PasswordInput
             id="hub-login-pass"
-            className="input"
-            type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"

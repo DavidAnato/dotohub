@@ -1116,6 +1116,41 @@ html[data-theme="dark"] .hub-hero-badge img {
   line-height: 1.35;
 }
 
+.password-field {
+  position: relative;
+}
+.password-field .input {
+  padding-right: 44px;
+}
+.auth-panel .password-field .input {
+  padding-right: 48px;
+}
+.password-toggle {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 0;
+}
+.password-toggle:hover,
+.password-toggle:focus-visible {
+  color: var(--heading);
+}
+.password-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(43, 179, 188, 0.45);
+}
+
 /* Statuts - coins nets, pas rounded-full */
 .pill {
   display: inline-flex;
@@ -1766,6 +1801,13 @@ html[data-theme="dark"] .textarea {
   background: var(--bg);
   border-color: var(--border);
   color: var(--text);
+}
+html[data-theme="dark"] .password-toggle {
+  color: #c5d4e8;
+}
+html[data-theme="dark"] .password-toggle:hover,
+html[data-theme="dark"] .password-toggle:focus-visible {
+  color: #f8fafc;
 }
 html[data-theme="dark"] .hub-sc:hover,
 html[data-theme="dark"] .hub-patients a:hover {
