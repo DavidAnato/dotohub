@@ -1,8 +1,8 @@
 // En dev : URLs relatives → proxy Vite (évite CORS hotspot/LAN).
-// Prod / preprod : VITE_API_URL ou défaut tunnel local (doto-anato).
+// Prod / preprod : VITE_API_URL ou défaut tunnel local (localtunnel).
 const API_URL =
   import.meta.env.VITE_API_URL ??
-  (import.meta.env.DEV ? "" : "https://doto-anato.loca.lt");
+  (import.meta.env.DEV ? "" : "https://itchy-owl-100.loca.lt");
 
 import { PIN_ERROR, PIN_REGEX } from "./constants";
 
