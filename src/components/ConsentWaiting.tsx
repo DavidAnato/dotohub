@@ -25,12 +25,14 @@ export function ConsentWaiting({
   patientName,
   emergency,
   role,
+  message,
   onCancel,
 }: {
   patientName?: string;
   emergency?: boolean;
   /** Rôle du pro demandeur - adapte le message d'attente. */
   role?: string;
+  message?: string;
   onCancel?: () => void;
 }) {
   if (emergency) {
@@ -60,6 +62,8 @@ export function ConsentWaiting({
   }
 
   const hint = waitingHint(role);
+  const awaitingPrior = !!message && message.toLowerCase().includes("ancien médecin");
+  const awaitingHopital = !!message && message.toLowerCase().includes("hôpital mère");
 
   return (
     <div className="card page-enter" style={{ textAlign: "center", padding: "36px 24px" }}>
@@ -69,13 +73,20 @@ export function ConsentWaiting({
         style={{ color: "var(--teal)", marginBottom: 14 }}
         aria-hidden
       />
-      <h2 style={{ margin: "0 0 8px", color: "var(--heading)" }}>Demande envoyée au patient…</h2>
+      <h2 style={{ margin: "0 0 8px", color: "var(--heading)" }}>
+        {awaitingPrior
+          ? "En attente de l'ancien médecin…"
+          : awaitingHopital
+            ? "Demande envoyée à l'hôpital mère…"
+            : "Demande envoyée au patient…"}
+      </h2>
       <p className="muted" style={{ maxWidth: 420, margin: "0 auto 16px" }}>
-        {patientName
-          ? `${patientName} doit confirmer l'accès dans l'application DOTO+.`
-          : "Le patient doit confirmer l'accès dans l'application DOTO+."}
-        {" "}
-        Vous serez notifié automatiquement (SSE).
+        {message
+          ? message
+          : patientName
+            ? `${patientName} doit confirmer l'accès dans l'application DOTO+.`
+            : "Le patient doit confirmer l'accès dans l'application DOTO+."}
+        {message ? null : " Vous serez notifié dès que le patient aura répondu."}
         {hint ? (
           <>
             <br />

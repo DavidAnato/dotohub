@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Pill } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
+import { labelStatut } from "../apiMessage";
 import { Empty } from "../components";
 import { PatientSelectSearch, type PatientOption } from "../components/PatientSelectSearch";
 import { useAppStore } from "../store/appStore";
@@ -125,7 +126,7 @@ export default function PharmaFile() {
                   ) : null}
                 </div>
                 <span className={`pill ${o.statut === "dispensee" || o.statut === "payee" ? "green" : "blue"}`}>
-                  {o.statut_label || o.statut || "active"}
+                  {labelStatut(o.statut, o.statut_label)}
                 </span>
               </div>
               <div className="small muted" style={{ marginTop: 6 }}>

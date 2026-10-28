@@ -1,8 +1,25 @@
 import { create } from "zustand";
 import { api } from "../api";
+import { formatDrfData, humanizeApiText, inferToastTone, type ToastTone } from "../apiMessage";
 import { queryClient } from "../queries/queryClient";
 
 export type ThemeMode = "light" | "dark";
+
+export type PendingIdOcr = {
+  npi?: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  birth_date?: string | null;
+  birth_place?: string | null;
+  phone?: string | null;
+  address_commune?: string | null;
+  address_arrondissement?: string | null;
+  address_quartier?: string | null;
+  father_name?: string | null;
+  mother_name?: string | null;
+  card_type?: string | null;
+  ts?: string;
+};
 
 export interface HubUser {
   id: number;
@@ -32,20 +49,24 @@ type AppState = {
   theme: ThemeMode;
   online: boolean;
   toast: string;
+  toastTone: ToastTone;
   sseOk: boolean;
   unread: number;
   pendingAccessId: number | null;
+  /** OCR CIP / CEDEAO reçu du téléphone (même compte). */
+  pendingIdOcr: PendingIdOcr | null;
   /** Verrouillage session PIN (obligatoire pro) */
   sessionLocked: boolean;
   needsPinSetup: boolean;
   setUser: (u: HubUser | null) => void;
   setAuthLoading: (v: boolean) => void;
   setOnline: (v: boolean) => void;
-  setToast: (msg: string) => void;
+  setToast: (msg: string, tone?: ToastTone) => void;
   setSseOk: (v: boolean) => void;
   setUnread: (n: number) => void;
   bumpUnread: () => void;
   setPendingAccessId: (id: number | null) => void;
+  setPendingIdOcr: (ocr: PendingIdOcr | null) => void;
   setTheme: (t: ThemeMode) => void;
   toggleTheme: () => void;
   hydrateTheme: () => void;
@@ -86,20 +107,31 @@ export const useAppStore = create<AppState>((set, get) => ({
   theme: "light",
   online: typeof navigator === "undefined" ? true : navigator.onLine,
   toast: "",
+  toastTone: "info",
   sseOk: false,
   unread: 0,
   pendingAccessId: null,
+  pendingIdOcr: null,
   sessionLocked: false,
   needsPinSetup: false,
 
   setUser: (user) => set({ user }),
   setAuthLoading: (authLoading) => set({ authLoading }),
   setOnline: (online) => set({ online }),
-  setToast: (toast) => set({ toast }),
+  setToast: (msg, tone) => {
+    const raw = typeof msg === "string" ? msg : formatDrfData(msg as unknown);
+    const toast = humanizeApiText(raw);
+    if (!toast) {
+      set({ toast: "", toastTone: "info" });
+      return;
+    }
+    set({ toast, toastTone: tone ?? inferToastTone(toast) });
+  },
   setSseOk: (sseOk) => set({ sseOk }),
   setUnread: (unread) => set({ unread }),
   bumpUnread: () => set((s) => ({ unread: s.unread + 1 })),
   setPendingAccessId: (pendingAccessId) => set({ pendingAccessId }),
+  setPendingIdOcr: (pendingIdOcr) => set({ pendingIdOcr }),
   setSessionLocked: (sessionLocked) => set({ sessionLocked }),
   setNeedsPinSetup: (needsPinSetup) => set({ needsPinSetup }),
 
@@ -136,8 +168,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       user: null,
       sseOk: false,
       toast: "",
+      toastTone: "info",
       unread: 0,
       pendingAccessId: null,
+      pendingIdOcr: null,
       sessionLocked: false,
       needsPinSetup: false,
     });
@@ -145,17 +179,20 @@ export const useAppStore = create<AppState>((set, get) => ({
   sessionExpired: (message = "Session expirée, reconnectez-vous") => {
     api.tokens.clear();
     queryClient.clear();
+    const toast = humanizeApiText(message);
     set({
       user: null,
       sseOk: false,
-      toast: message,
+      toast,
+      toastTone: "error",
       unread: 0,
       pendingAccessId: null,
+      pendingIdOcr: null,
       sessionLocked: false,
       needsPinSetup: false,
     });
     window.setTimeout(() => {
-      if (get().toast === message) set({ toast: "" });
+      if (get().toast === toast) set({ toast: "", toastTone: "info" });
     }, 4500);
   },
   bootstrapAuth: async () => {

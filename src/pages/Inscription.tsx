@@ -6,16 +6,11 @@ import { HospitalPicker } from "../components/HospitalPicker";
 import { PasswordInput } from "../components/PasswordInput";
 import { PhoneInput } from "../components/PhoneInput";
 import { PRO_ROLES, TYPE_EXERCICE, typeExerciceHint } from "../constants";
+import { formatDrfData, humanizeApiText } from "../apiMessage";
 import { useAppStore } from "../store/appStore";
 
 function firstError(data: any, fallback: string) {
-  if (!data) return fallback;
-  if (typeof data.detail === "string") return data.detail;
-  for (const val of Object.values(data)) {
-    if (typeof val === "string") return val;
-    if (Array.isArray(val) && val[0]) return String(val[0]);
-  }
-  return fallback;
+  return formatDrfData(data) || humanizeApiText(fallback);
 }
 
 export default function Inscription() {

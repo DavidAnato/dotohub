@@ -142,6 +142,18 @@ export function useCreateConsultation(patientId: number) {
   });
 }
 
+export function useUpdateConsultation(patientId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: number; body: unknown }) => api.updateConsultation(id, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.consultations(patientId) });
+      qc.invalidateQueries({ queryKey: qk.hubDashboard });
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+    },
+  });
+}
+
 export function useAnnulerConsultation(patientId: number) {
   const qc = useQueryClient();
   return useMutation({

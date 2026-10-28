@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ClipboardList } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api";
+import { labelStatut } from "../apiMessage";
 import { Empty } from "../components";
 import { Avatar } from "../components/Avatar";
 
@@ -59,7 +60,7 @@ export default function Tournee() {
                       {formatHeure(a.debut)}
                     </strong>
                     <span>{a.patient_name || `Patient #${a.patient}`}</span>
-                    <span className="pill blue">{a.statut_label || a.statut}</span>
+                    <span className="pill blue">{labelStatut(a.statut, a.statut_label)}</span>
                   </div>
                   <p className="small muted" style={{ marginTop: 6 }}>
                     {a.motif || "Sans motif"}

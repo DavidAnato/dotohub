@@ -52,7 +52,6 @@ export default function Login() {
             className="input"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="medecin"
             autoComplete="username"
             autoFocus
           />
@@ -71,14 +70,11 @@ export default function Login() {
         </div>
         {error ? <p className="auth-error">{error}</p> : null}
         <button className="btn auth-submit" disabled={busy}>
-          {busy ? "Connexion…" : "Se connecter"}
+          {busy ? "En cours…" : "Se connecter"}
         </button>
       </form>
       <p className="auth-switch">
         Nouveau professionnel ? <Link to="/inscription">Créer un compte</Link>
-      </p>
-      <p className="auth-foot">
-        Démo <span className="mono">medecin</span> / <span className="mono">Medecin123!</span>
       </p>
     </AuthShell>
   );

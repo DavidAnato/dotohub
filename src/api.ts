@@ -1,10 +1,11 @@
 // En dev : URLs relatives → proxy Vite (évite CORS hotspot/LAN).
-// Prod / preprod : VITE_API_URL ou défaut tunnel local (localtunnel).
+// Prod / preprod : VITE_API_URL ou défaut API publique.
 const API_URL =
   import.meta.env.VITE_API_URL ??
-  (import.meta.env.DEV ? "" : "https://itchy-owl-100.loca.lt");
+  (import.meta.env.DEV ? "" : "https://doto-api.await-tech.com");
 
 import { PIN_ERROR, PIN_REGEX } from "./constants";
+import { formatDrfData } from "./apiMessage";
 
 const LOCAL_PIN_KEY = "doto_hub_local_pin";
 
@@ -46,7 +47,7 @@ export class ApiError extends Error {
   status: number;
   data: any;
   constructor(status: number, data: any) {
-    super(data?.detail || "Erreur API");
+    super(formatDrfData(data) || "Erreur API");
     this.status = status;
     this.data = data;
   }
@@ -254,6 +255,8 @@ export const api = {
     return res.json();
   },
   hubDashboard: () => request("/api/hub/dashboard/"),
+  /** Scans mobile récents, si le flux SSE s'est interrompu. */
+  hubLive: () => request("/api/hub/live/"),
   /** URL EventSource - JWT en query (pas de header Authorization possible). */
   hubEventsUrl() {
     const access = encodeURIComponent(store.access || "");
@@ -298,6 +301,8 @@ export const api = {
     request(`/api/consultations/?patient=${patient}`),
   createConsultation: (body: any) =>
     request("/api/consultations/", { method: "POST", body: JSON.stringify(body) }),
+  updateConsultation: (id: number, body: any) =>
+    request(`/api/consultations/${id}/`, { method: "PATCH", body: JSON.stringify(body) }),
   annulerConsultation: (id: number) =>
     request(`/api/consultations/${id}/annuler/`, { method: "POST" }),
   ordonnances: (patient: number | string) =>
@@ -436,7 +441,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ token, emergency }),
     }),
-  requestAccess: (patientId: number, opts?: { emergency?: boolean; reason?: string }) =>
+  requestAccess: (patientId: number, opts?: { emergency?: boolean; reason?: string; durationHours?: number }) =>
     request("/api/access-requests/create/", {
       method: "POST",
       body: JSON.stringify({
@@ -444,9 +449,81 @@ export const api = {
         mode: "search",
         emergency: !!opts?.emergency,
         ...(opts?.reason ? { reason: opts.reason } : {}),
+        ...(opts?.durationHours ? { duration_hours: opts.durationHours } : {}),
       }),
     }),
+  accessInbox: () => request("/api/access-requests/?inbox=1"),
+  approveAccess: (id: number) =>
+    request(`/api/access-requests/${id}/approve/`, { method: "POST" }),
+  denyAccess: (id: number) =>
+    request(`/api/access-requests/${id}/deny/`, { method: "POST" }),
+  hopitalTransfers: () => request("/api/hopital-mere/transferts/"),
+  createHopitalTransfer: (body: {
+    patient_id: number;
+    duration_hours: number;
+    to_structure_id?: number;
+  }) =>
+    request("/api/hopital-mere/transferts/", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  approveHopitalTransfer: (id: number) =>
+    request(`/api/hopital-mere/transferts/${id}/approve/`, { method: "POST" }),
+  denyHopitalTransfer: (id: number) =>
+    request(`/api/hopital-mere/transferts/${id}/deny/`, { method: "POST" }),
+  confirmHopitalTransfer: (id: number) =>
+    request(`/api/hopital-mere/transferts/${id}/confirm/`, { method: "POST" }),
+  cancelHopitalTransfer: (id: number) =>
+    request(`/api/hopital-mere/transferts/${id}/cancel/`, { method: "POST" }),
+  emettreCarte: (patientId: number) =>
+    request(`/api/patients/${patientId}/emettre-carte/`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+  medecinsReferents: (patientId: number) =>
+    request(`/api/patients/${patientId}/medecins-referents/`),
+  setMedecinReferent: (patientId: number, medecinId: number | null) =>
+    request(`/api/patients/${patientId}/medecin-referent/`, {
+      method: "POST",
+      body: JSON.stringify({ medecin_id: medecinId }),
+    }),
+  uploadPatientPhoto: async (patientId: number | string, file: File) => {
+    const body = new FormData();
+    body.append("photo", file);
+    const res = await authFetch(`/api/patients/${patientId}/photo/`, { method: "POST", body });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(res.status, data);
+    return data;
+  },
+  /** Même endpoint que l'inscription patient. Le compte pro publie le résultat sur le bus hub. */
+  ocrIdCard: async (file: File) => {
+    const body = new FormData();
+    body.append("image", file);
+    const res = await authFetch("/api/auth/patient/ocr-id/", { method: "POST", body });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(res.status, data);
+    return data as {
+      ok?: boolean;
+      npi?: string;
+      first_name?: string | null;
+      last_name?: string | null;
+      birth_date?: string | null;
+      birth_place?: string | null;
+      phone?: string | null;
+      address_commune?: string | null;
+      address_arrondissement?: string | null;
+      address_quartier?: string | null;
+      father_name?: string | null;
+      mother_name?: string | null;
+      card_type?: string | null;
+    };
+  },
   accessRequest: (id: number) => request(`/api/access-requests/${id}/`),
+  accessRequestsPrior: () => request("/api/access-requests/?prior=1"),
+  priorApproveAccess: (id: number) =>
+    request(`/api/access-requests/${id}/prior-approve/`, { method: "POST" }),
+  priorDenyAccess: (id: number) =>
+    request(`/api/access-requests/${id}/prior-deny/`, { method: "POST" }),
   cancelAccessRequest: (id: number) =>
     request(`/api/access-requests/${id}/cancel/`, { method: "POST" }),
   notifications: () => request("/api/notifications/"),
@@ -456,6 +533,25 @@ export const api = {
   markAllNotifsRead: () =>
     request("/api/notifications/read_all/", { method: "POST" }),
   qrUrl: (id: number) => `${API_URL}/api/dodocards/${id}/qr/`,
+  pdfUrl: (id: number) => `${API_URL}/api/dodocards/${id}/pdf/`,
+  async authedBlob(urlOrPath: string): Promise<Blob> {
+    const abs =
+      urlOrPath.startsWith("http") || urlOrPath.startsWith("blob:")
+        ? urlOrPath
+        : `${API_URL}${urlOrPath.startsWith("/") ? "" : "/"}${urlOrPath}`;
+    const load = () => {
+      const headers: Record<string, string> = {};
+      if (store.access) headers.Authorization = `Bearer ${store.access}`;
+      return fetch(abs, { headers });
+    };
+    let res = await load();
+    if (res.status === 401 && store.refresh) {
+      const refreshed = await tryRefresh();
+      if (refreshed) res = await load();
+    }
+    if (!res.ok) throw new ApiError(res.status, null);
+    return res.blob();
+  },
   revokeCard: (id: number) =>
     request(`/api/dodocards/${id}/revoke/`, {
       method: "POST",

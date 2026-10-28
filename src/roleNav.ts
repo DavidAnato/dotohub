@@ -11,9 +11,13 @@ export function canSeeAgenda(role?: string): boolean {
   return ["medecin", "admin", "infirmier", "receptionniste"].includes(norm(role));
 }
 
-/** DotoCards : admin uniquement */
+/** DotoCards : admin uniquement. L'accueil émet la carte depuis le dossier. */
 export function canSeeDodoCards(role?: string): boolean {
   return norm(role) === "admin";
+}
+
+export function canSeeDemandes(role?: string): boolean {
+  return ["receptionniste", "medecin", "admin"].includes(norm(role));
 }
 
 /** Destination métier pour un chip de stats Accueil (null = non cliquable) */
@@ -45,7 +49,8 @@ export function roleHomeLinks(role?: string): RoleHomeLink[] {
   switch (norm(role)) {
     case "receptionniste":
       return [
-        { to: "/patients/nouveau", label: "Nouveau patient", hint: "Créer un dossier patient" },
+        { to: "/patients/nouveau", label: "Nouveau patient", hint: "Créer un dossier sans téléphone" },
+        { to: "/demandes", label: "Demandes d'accès", hint: "À accepter pour l'hôpital mère" },
         { to: "/rdv", label: "Agenda", hint: "Rendez-vous et suivi" },
       ];
     case "pharmacien":
@@ -63,7 +68,18 @@ export function roleHomeLinks(role?: string): RoleHomeLink[] {
         },
       ];
     case "medecin":
+      return [
+        { to: "/demandes", label: "Demandes d'accès", hint: "Si vous êtes médecin référent" },
+        { to: "/recherche", label: "Rechercher", hint: "NPI, nom ou scan QR patient" },
+        { to: "/rdv", label: "Agenda", hint: "Rendez-vous et suivi" },
+      ];
     case "admin":
+      return [
+        { to: "/patients/nouveau", label: "Nouveau patient", hint: "Créer un dossier sans téléphone" },
+        { to: "/demandes", label: "Demandes d'accès", hint: "File de l'hôpital mère" },
+        { to: "/recherche", label: "Rechercher", hint: "NPI, nom ou scan QR patient" },
+        { to: "/rdv", label: "Agenda", hint: "Rendez-vous et suivi" },
+      ];
     default:
       return [
         { to: "/recherche", label: "Rechercher", hint: "NPI, nom ou scan QR patient" },

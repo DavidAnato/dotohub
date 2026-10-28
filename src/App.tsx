@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
-import { Home, Search, LogOut, Moon, Sun, Radio, Calendar, UserRound, CreditCard } from "lucide-react";
+import { Calendar, CreditCard, Home, Inbox, LogOut, Moon, Search, Sun, UserRound } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "./auth";
 import { OfflineBanner, Toast } from "./components";
@@ -12,7 +12,7 @@ import { HospitalAttachGate } from "./components/HospitalAttachGate";
 import { useHubSSE, type HubSseEvent } from "./hooks";
 import { useAppStore } from "./store/appStore";
 import { api } from "./api";
-import { canSeeAgenda, canSeeDodoCards } from "./roleNav";
+import { canSeeAgenda, canSeeDodoCards, canSeeDemandes } from "./roleNav";
 import { qk } from "./queries/keys";
 import { needsHospitalAttach, PIN_ERROR, PIN_REGEX } from "./constants";
 import Login from "./pages/Login";
@@ -27,6 +27,7 @@ import PharmaFile from "./pages/PharmaFile";
 import LaboFile from "./pages/LaboFile";
 import Tournee from "./pages/Tournee";
 import DodoCards from "./pages/DodoCards";
+import Demandes from "./pages/Demandes";
 
 const IDLE_LOCK_MS = 15 * 60 * 1000; // inactivité sur la page
 const AWAY_LOCK_MS = 15 * 60 * 1000; // absence onglet / app (pas de verrou immédiat)
@@ -116,7 +117,7 @@ function Layout() {
   const setToast = useAppStore((s) => s.setToast);
   const bumpUnread = useAppStore((s) => s.bumpUnread);
   const setPendingAccessId = useAppStore((s) => s.setPendingAccessId);
-  const [sseOk, setSseOk] = useState(false);
+  const setPendingIdOcr = useAppStore((s) => s.setPendingIdOcr);
 
   const kickFromPatientIfOpen = useCallback(
     (patientId: number | string | undefined | null, message: string) => {
@@ -136,10 +137,16 @@ function Layout() {
     [nav, setToast]
   );
 
+  const seenLive = useRef(new Set<string>());
+
   const onSse = useCallback(
     (ev: HubSseEvent) => {
+      if (ev.type !== "connected" && ev.type !== "ping") {
+        const key = `${ev.type}|${ev.patient_id ?? ""}|${ev.access_request_id ?? ""}|${ev.ts ?? ""}`;
+        if (seenLive.current.has(key)) return;
+        seenLive.current.add(key);
+      }
       if (ev.type === "connected") {
-        setSseOk(true);
         return;
       }
       if (ev.type === "ping") return;
@@ -176,7 +183,12 @@ function Layout() {
       }
       if (ev.type === "access_pending" && ev.patient_id) {
         if (ev.access_request_id) setPendingAccessId(ev.access_request_id);
-        setToast("Demande envoyée au patient - en attente de confirmation…");
+        const viaHopital = (ev as { route?: string }).route === "hopital_mere";
+        setToast(
+          viaHopital
+            ? "Demande envoyée à l'hôpital mère. Le dossier reste fermé."
+            : "Demande envoyée au patient - en attente de confirmation…"
+        );
         nav(`/patient/${ev.patient_id}`);
         return;
       }
@@ -193,15 +205,31 @@ function Layout() {
         window.setTimeout(() => setToast(""), 4200);
         return;
       }
+      if (ev.type === "access_awaiting_prior") {
+        const label = ev.full_name || ev.npi || (ev.patient_id ? `#${ev.patient_id}` : "le patient");
+        setToast(`Patient d'accord — en attente de l'ancien médecin · ${label}`);
+        if (ev.patient_id) invalidatePatientMedical(qc, ev.patient_id);
+        window.setTimeout(() => setToast(""), 4200);
+        return;
+      }
       if (ev.type === "access_denied") {
         setPendingAccessId(null);
-        setToast("Accès refusé par le patient.");
+        setToast(
+          (ev as { prior_denied?: boolean }).prior_denied
+            ? "Transfert refusé par l'ancien médecin."
+            : (ev as { hopital_denied?: boolean }).hopital_denied
+              ? "Accès refusé par l'hôpital mère."
+              : "Accès refusé par le patient."
+        );
         window.setTimeout(() => setToast(""), 4200);
         return;
       }
       if (ev.type === "access_expired") {
         setPendingAccessId(null);
-        const msg = "Demande d'accès expirée. Le dossier se ferme.";
+        const msg =
+          (typeof (ev as { message?: string }).message === "string" &&
+            (ev as { message?: string }).message) ||
+          "Cet accès a expiré";
         kickFromPatientIfOpen(ev.patient_id, msg);
         if (ev.patient_id) invalidatePatientMedical(qc, ev.patient_id);
         return;
@@ -216,7 +244,51 @@ function Layout() {
         if (ev.patient_id) invalidatePatientMedical(qc, ev.patient_id);
         return;
       }
+      if (ev.type === "patient_id_ocr") {
+        setPendingIdOcr({
+          npi: ev.npi,
+          first_name: (ev as { first_name?: string | null }).first_name,
+          last_name: (ev as { last_name?: string | null }).last_name,
+          birth_date: (ev as { birth_date?: string | null }).birth_date,
+          birth_place: (ev as { birth_place?: string | null }).birth_place,
+          phone: (ev as { phone?: string | null }).phone,
+          address_commune: (ev as { address_commune?: string | null }).address_commune,
+          address_arrondissement: (ev as { address_arrondissement?: string | null }).address_arrondissement,
+          address_quartier: (ev as { address_quartier?: string | null }).address_quartier,
+          father_name: (ev as { father_name?: string | null }).father_name,
+          mother_name: (ev as { mother_name?: string | null }).mother_name,
+          card_type: (ev as { card_type?: string | null }).card_type,
+          ts: ev.ts,
+        });
+        setToast("Pièce lue — vérifiez les informations du nouveau patient");
+        if (!locationRef.current.pathname.startsWith("/patients/nouveau")) {
+          nav("/patients/nouveau");
+        }
+        window.setTimeout(() => setToast(""), 4200);
+        return;
+      }
       if (ev.type === "dodocard_scan" && ev.patient_id) {
+        if ((ev as { access_expired?: boolean }).access_expired) {
+          kickFromPatientIfOpen(ev.patient_id, "Cet accès a expiré");
+          if (ev.patient_id) invalidatePatientMedical(qc, ev.patient_id);
+          return;
+        }
+        if ((ev as { duration_required?: boolean }).duration_required) {
+          setToast("Indiquez la durée d'accès. Le dossier reste fermé.");
+          nav(`/patient/${ev.patient_id}`);
+          window.setTimeout(() => setToast(""), 4200);
+          return;
+        }
+        if ((ev as { dossier_visible?: boolean }).dossier_visible === false) {
+          if (ev.access_request_id) setPendingAccessId(ev.access_request_id);
+          setToast(
+            (ev as { message?: string }).message ||
+              "Demande envoyée à l'hôpital mère. Le dossier reste fermé."
+          );
+          nav(`/patient/${ev.patient_id}`);
+          window.setTimeout(() => setToast(""), 4200);
+          return;
+        }
         // Scan mobile (même compte JWT) → ouvrir le dossier ici, même depuis Accueil / autre page.
         if (ev.consent_required && ev.access_request_id) {
           setPendingAccessId(ev.access_request_id);
@@ -234,16 +306,37 @@ function Layout() {
         window.setTimeout(() => setToast(""), 4200);
       }
     },
-    [nav, setToast, bumpUnread, setPendingAccessId, qc, kickFromPatientIfOpen]
+    [nav, setToast, bumpUnread, setPendingAccessId, setPendingIdOcr, qc, kickFromPatientIfOpen]
   );
 
-  const { status: sseStatus } = useHubSSE(!!user, onSse);
+  useHubSSE(!!user, onSse);
+
+  useEffect(() => {
+    if (!user) return;
+    let stop = false;
+    const pull = async () => {
+      try {
+        const data = await api.hubLive();
+        if (stop) return;
+        for (const ev of data?.events || []) onSse(ev);
+      } catch {
+        /* le flux SSE reste le canal principal */
+      }
+    };
+    void pull();
+    const timer = window.setInterval(() => void pull(), 2000);
+    return () => {
+      stop = true;
+      window.clearInterval(timer);
+    };
+  }, [user, onSse]);
 
   const role = user?.role;
   const links: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
     { to: "/", label: "Accueil", icon: Home, end: true },
     { to: "/recherche", label: "Recherche patient", icon: Search },
     ...(canSeeAgenda(role) ? [{ to: "/rdv", label: "Rendez-vous", icon: Calendar }] : []),
+    ...(canSeeDemandes(role) ? [{ to: "/demandes", label: "Demandes", icon: Inbox }] : []),
     ...(canSeeDodoCards(role) ? [{ to: "/dotocards", label: "DotoCards", icon: CreditCard }] : []),
     { to: "/parametres", label: "Paramètres", icon: UserRound },
   ];
@@ -275,12 +368,7 @@ function Layout() {
             );
           })}
         </nav>
-        <div className="foot">
-          <div className={`sse-pill ${sseStatus === "open" || sseOk ? "on" : ""}`}>
-            <Radio size={12} strokeWidth={2.5} aria-hidden />
-            {sseStatus === "open" || sseOk ? "Temps réel actif" : "Connexion…"}
-          </div>
-        </div>
+        <div className="foot" />
       </aside>
       <div className="main">
         <OfflineBanner online={online} />
@@ -297,22 +385,19 @@ function Layout() {
             >
               {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
             </button>
-            <div
-              role="button"
-              tabIndex={0}
+            <button
+              type="button"
               className="topbar-user"
-              onClick={() => nav("/profil")}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") nav("/profil");
-              }}
-              title="Mon profil"
+              onClick={() => nav("/parametres")}
+              title="Paramètres du compte"
+              aria-label="Ouvrir les paramètres du compte"
             >
               <div className="topbar-user-meta">
                 <div style={{ fontWeight: 600 }}>{user?.full_name}</div>
                 <div className="small muted">{user?.role_label}</div>
               </div>
               <Avatar src={user?.photo_url} name={user?.full_name} size={36} />
-            </div>
+            </button>
             <button
               className="btn ghost sm topbar-logout"
               onClick={() => {
@@ -366,6 +451,7 @@ function ProtectedLayout() {
 export default function App() {
   const { user } = useAuth();
   const toast = useAppStore((s) => s.toast);
+  const toastTone = useAppStore((s) => s.toastTone);
   const setToast = useAppStore((s) => s.setToast);
   const sessionLocked = useAppStore((s) => s.sessionLocked);
   const needsPinSetup = useAppStore((s) => s.needsPinSetup);
@@ -484,6 +570,7 @@ export default function App() {
           <Route path="/labo" element={<LaboFile />} />
           <Route path="/tournee" element={<Tournee />} />
           <Route path="/dotocards" element={<DodoCards />} />
+          <Route path="/demandes" element={<Demandes />} />
           <Route path="/dodocards" element={<Navigate to="/dotocards" replace />} />
           <Route path="/patient/:id" element={<Patient />} />
           <Route path="/profil" element={<Profil />} />
@@ -491,7 +578,7 @@ export default function App() {
         </Route>
         <Route path="*" element={<Navigate to={user ? "/" : "/login"} replace />} />
       </Routes>
-      <Toast message={toast} onClose={() => setToast("")} />
+      <Toast message={toast} tone={toastTone} onClose={() => setToast("")} />
       {showPinGate ? (
         <PinSessionGate
           mode={needsPinSetup ? "setup" : "unlock"}

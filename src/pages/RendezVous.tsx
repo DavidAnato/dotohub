@@ -2,17 +2,24 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Calendar, Plus, X } from "lucide-react";
 import { api } from "../api";
+import { labelStatut } from "../apiMessage";
 import { useAuth } from "../auth";
 import { Empty } from "../components";
 import { Avatar } from "../components/Avatar";
 import { PatientSelectSearch } from "../components/PatientSelectSearch";
 import { useAppStore } from "../store/appStore";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  datetimeLocalMin,
+  findAppointmentConflict,
+  formatConflictLabel,
+  isPastDateTime,
+} from "../utils/appointmentRules";
 
 function defaultRdvLocal() {
   const d = new Date();
-  d.setMinutes(0, 0, 0);
-  d.setHours(d.getHours() + 1);
+  d.setDate(d.getDate() + 1);
+  d.setHours(9, 0, 0, 0);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
@@ -53,16 +60,31 @@ export default function RendezVous() {
   });
 
   const createMut = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
+      const debutDate = new Date(form.debut);
+      if (isPastDateTime(debutDate)) {
+        throw new Error("La date du rendez-vous ne peut pas être dans le passé.");
+      }
       const body: Record<string, unknown> = {
         patient: Number(form.patient),
-        debut: form.debut ? new Date(form.debut).toISOString() : new Date().toISOString(),
+        debut: debutDate.toISOString(),
         motif: form.motif,
         notes: form.notes,
       };
-      if (isMedecin) body.professionnel = user?.id;
-      else if ((isReception || user?.role === "admin") && form.mode === "medecin" && form.professionnel) {
+      let profId: number | undefined;
+      if (isMedecin) {
+        body.professionnel = user?.id;
+        profId = user?.id;
+      } else if ((isReception || user?.role === "admin") && form.mode === "medecin" && form.professionnel) {
         body.professionnel = Number(form.professionnel);
+        profId = Number(form.professionnel);
+      }
+      const conflict = findAppointmentConflict(items, debutDate, profId);
+      if (conflict) {
+        const ok = window.confirm(
+          `Un rendez-vous existe déjà le ${formatConflictLabel(conflict)}.\n\nCréer quand même ce créneau ?`
+        );
+        if (!ok) throw new Error("Création annulée.");
       }
       return api.createAppointment(body);
     },
@@ -83,7 +105,10 @@ export default function RendezVous() {
       setOpen(false);
       qc.invalidateQueries({ queryKey: ["appointments"] });
     },
-    onError: (e: any) => setToast(e?.data?.detail || e.message || "Échec création RDV"),
+    onError: (e: any) => {
+      const msg = e?.data?.detail || e?.message || "Échec création RDV";
+      if (msg !== "Création annulée.") setToast(msg);
+    },
   });
 
   const confirmerMut = useMutation({
@@ -146,7 +171,7 @@ export default function RendezVous() {
                   <div className="row" style={{ justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
                     <strong>{a.motif || "RDV"}</strong>
                     <span className={`pill ${pending ? "amber" : a.statut === "confirme" ? "green" : "blue"}`}>
-                      {pending ? "À confirmer" : a.statut_label || a.statut}
+                      {pending ? "À confirmer" : labelStatut(a.statut, a.statut_label)}
                     </span>
                   </div>
                   <div className="small muted row" style={{ gap: 8, alignItems: "center", marginTop: 6 }}>
@@ -180,24 +205,33 @@ export default function RendezVous() {
                   ) : null}
                   {isMedecin &&
                   !pending &&
-                  (a.statut === "confirme" || a.statut === "planifie") ? (
+                  (a.statut === "confirme" ||
+                    a.statut === "planifie" ||
+                    a.consultation_incomplete) ? (
                     <div className="row" style={{ gap: 8, marginTop: 12, flexWrap: "wrap" }}>
                       <button
                         className="btn sm"
                         type="button"
                         onClick={async () => {
                           try {
-                            const c = await api.demarrerConsultation(a.id);
-                            setToast("Consultation démarrée");
+                            const c = a.consultation_id
+                              ? { id: a.consultation_id, patient: a.patient, incomplete: a.consultation_incomplete }
+                              : await api.demarrerConsultation(a.id);
+                            setToast(
+                              c?.incomplete === false
+                                ? "Consultation déjà renseignée"
+                                : "Complétez maintenant les informations de la consultation"
+                            );
                             qc.invalidateQueries({ queryKey: ["appointments"] });
-                            if (c?.patient) nav(`/patient/${c.patient}?tab=historique`);
-                            else nav(`/patient/${a.patient}?tab=historique`);
+                            const pid = c?.patient || a.patient;
+                            const cid = c?.id ? `&consult=${c.id}` : "";
+                            nav(`/patient/${pid}?tab=historique${cid}`);
                           } catch (e: any) {
                             setToast(e?.data?.detail || e?.message || "Échec");
                           }
                         }}
                       >
-                        Démarrer la consultation
+                        {a.consultation_id ? "Continuer la consultation" : "Démarrer la consultation"}
                       </button>
                       <button
                         className="btn ghost sm"
@@ -290,6 +324,7 @@ export default function RendezVous() {
                   className="input"
                   type="datetime-local"
                   value={form.debut}
+                  min={datetimeLocalMin()}
                   onChange={(e) => setForm({ ...form, debut: e.target.value })}
                 />
                 <input

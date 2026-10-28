@@ -76,7 +76,9 @@ export default function Recherche() {
     setBusy(true);
     try {
       const res = await api.scan(raw.trim(), emergency);
-      if (res.consent_required) {
+      if (res.duration_required || res.dossier_visible === false) {
+        setMsg(res.message || "Le dossier reste fermé. La demande part à l'hôpital mère.");
+      } else if (res.consent_required) {
         setMsg("Demande envoyée au patient - en attente de confirmation…");
       } else if (res.emergency || emergency) {
         setMsg("Accès urgence sans consentement - journalisé.");
@@ -121,7 +123,7 @@ export default function Recherche() {
       setMsg(
         e?.message?.includes("Permission") || e?.name === "NotAllowedError"
           ? "Autorisez l'accès à la caméra dans le navigateur."
-          : "Caméra indisponible - collez le token ou utilisez une douchette."
+          : "Caméra indisponible. Collez le code de la carte ou utilisez une douchette."
       );
     }
   };
@@ -225,7 +227,7 @@ export default function Recherche() {
         <div className="panel">
           <label className="label">Scan DotoCard</label>
           <p className="small muted" style={{ marginBottom: 10 }}>
-            Caméra smartphone / webcam, ou collez le token lu par une douchette USB.
+            Caméra du téléphone ou webcam, ou collez le code lu par une douchette USB.
           </p>
 
           {!scanning ? (
@@ -245,7 +247,7 @@ export default function Recherche() {
           <textarea
             className="textarea"
             rows={3}
-            placeholder="Token chiffré du QR…"
+            placeholder="Code lu sur le QR…"
             value={token}
             onChange={(e) => setToken(e.target.value)}
           />
@@ -255,7 +257,7 @@ export default function Recherche() {
             onClick={() => resolveToken(token)}
             disabled={busy || !token}
           >
-            Résoudre le token
+            Ouvrir avec ce code
           </button>
         </div>
       </div>

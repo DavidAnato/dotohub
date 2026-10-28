@@ -61,6 +61,7 @@ type HubDash = {
     ordonnances_actives?: number;
     scans_7j?: number;
     patients_recents?: number;
+    transferts_pending?: number;
   };
   patients_recents?: {
     id: number;
@@ -69,6 +70,14 @@ type HubDash = {
     prenom?: string;
     full_name?: string;
     photo_url?: string | null;
+  }[];
+  transferts_pending?: {
+    id: number;
+    patient_id: number;
+    patient_name?: string;
+    patient_npi?: string;
+    requester_name?: string;
+    reason?: string;
   }[];
 };
 
@@ -108,12 +117,13 @@ export default function Accueil() {
   const { user } = useAuth();
   const nav = useNavigate();
   const online = useAppStore((s) => s.online);
-  const { data: dashResult, isLoading: loading } = useHubDashboard();
+  const { data: dashResult, isLoading: loading, refetch } = useHubDashboard();
   const data = (dashResult?.data || {}) as HubDash;
   const fromCache = !!dashResult?.fromCache;
   const [q, setQ] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  const [transferBusy, setTransferBusy] = useState<number | null>(null);
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -172,7 +182,21 @@ export default function Accueil() {
   const showAgenda = canSeeAgenda(roleKey);
   const stats = data?.stats || {};
   const recent = data?.patients_recents || [];
+  const transferts = data?.transferts_pending || [];
   const scanHref = roleKey === "ambulancier" ? "/recherche?urgence=1" : "/recherche";
+
+  const onTransfer = async (id: number, approve: boolean) => {
+    setTransferBusy(id);
+    try {
+      if (approve) await api.priorApproveAccess(id);
+      else await api.priorDenyAccess(id);
+      await refetch();
+    } catch (err: any) {
+      setMsg(err?.data?.detail || err?.message || "Action impossible.");
+    } finally {
+      setTransferBusy(null);
+    }
+  };
   const destConsult = roleStatDestination(roleKey, "consultations");
   const destOrdo = roleStatDestination(roleKey, "ordonnances");
   const destScans = roleStatDestination(roleKey, "scans");
@@ -268,11 +292,54 @@ export default function Accueil() {
         />
       </div>
 
+      {roleKey === "medecin" && transferts.length > 0 ? (
+        <section className="panel hub-panel stagger" style={{ animationDelay: "200ms", marginTop: 16 }}>
+          <h3>Transferts d'accès à valider</h3>
+          <p className="small muted" style={{ marginBottom: 12 }}>
+            Le patient a déjà accepté. Confirmez le transfert pour que le confrère puisse ouvrir le dossier.
+          </p>
+          <ul className="hub-patients">
+            {transferts.map((t) => (
+              <li key={t.id} style={{ display: "block", padding: "12px 0" }}>
+                <div className="row" style={{ justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div>
+                    <strong>{t.patient_name}</strong>
+                    <div className="mono small muted">{t.patient_npi}</div>
+                    <div className="small" style={{ marginTop: 4 }}>
+                      Vers {t.requester_name}
+                      {t.reason ? ` · ${t.reason}` : ""}
+                    </div>
+                  </div>
+                  <div className="row" style={{ gap: 8 }}>
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      disabled={transferBusy === t.id}
+                      onClick={() => void onTransfer(t.id, false)}
+                    >
+                      Refuser
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={transferBusy === t.id}
+                      onClick={() => void onTransfer(t.id, true)}
+                    >
+                      {transferBusy === t.id ? "…" : "Autoriser"}
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <div className="hub-main-grid">
         <section className="panel hub-panel stagger" style={{ animationDelay: "220ms" }}>
           <h3>Recherche rapide</h3>
           <p className="small muted" style={{ marginBottom: 14 }}>
-            NPI, nom, ou token DotoCard pour ouvrir le dossier. Un scan mobile ouvre aussi le dossier via SSE.
+            NPI ou nom pour ouvrir le dossier. Un scan depuis le téléphone ouvre aussi le dossier.
           </p>
           <form onSubmit={onSearch} className="hub-search">
             <input
@@ -304,7 +371,7 @@ export default function Accueil() {
               <div>
                 <strong>Scanner DotoCard</strong>
                 <div className="small muted">
-                  {roleKey === "ambulancier" ? "QR / token · mode urgence" : "QR / douchette / token"}
+                  {roleKey === "ambulancier" ? "QR · mode urgence" : "QR ou douchette"}
                 </div>
               </div>
             </Link>
@@ -368,7 +435,7 @@ export default function Accueil() {
           <strong>Mode urgence</strong>
           <p className="small muted" style={{ marginTop: 4 }}>
             Scannez avec le téléphone (app DOTO+ mode pro) : le dossier s&apos;ouvre automatiquement
-            ici via le flux SSE.
+            ici dès la lecture du QR.
           </p>
         </div>
         <Link to={scanHref} className="btn danger sm">

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { FlaskConical, FileText, AlertTriangle, Plus, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
+import { labelStatut } from "../apiMessage";
 import { Empty } from "../components";
 import { PatientSelectSearch } from "../components/PatientSelectSearch";
 import { useAppStore } from "../store/appStore";
@@ -167,7 +168,7 @@ export default function LaboFile() {
                 <strong>
                   Bon #{b.id} · {b.patient_nom}
                 </strong>
-                <span className="pill blue">{b.statut_label || b.statut}</span>
+                <span className="pill blue">{labelStatut(b.statut, b.statut_label)}</span>
               </div>
               <div className="small muted">
                 {(b.lignes || []).map((l: any) => l.type_examen).join(", ")}
@@ -335,7 +336,7 @@ export default function LaboFile() {
                 <div style={{ gridColumn: "1 / -1" }}>
                   <label className="label">Patient</label>
                   <p className="muted small" style={{ marginBottom: 6 }}>
-                    Recherche par nom ou NPI - pas d&apos;ID technique
+                    Recherche par nom ou NPI
                   </p>
                   <PatientSelectSearch
                     value={form.patient}

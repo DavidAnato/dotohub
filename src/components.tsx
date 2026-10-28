@@ -1,4 +1,6 @@
-import { Droplets, FlaskConical, TriangleAlert, WifiOff, X } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { CircleAlert, CircleCheck, Droplets, FlaskConical, Info, TriangleAlert, WifiOff, X } from "lucide-react";
+import { labelStatut, type ToastTone } from "./apiMessage";
 
 function displayVal(v?: string | null) {
   const t = (v || "").trim();
@@ -82,7 +84,7 @@ export function StatusBadge({ status }: { status: string }) {
     planifie: "amber",
     confirme: "green",
   };
-  return <span className={`pill ${map[status] || "blue"}`}>{status === "payee" || status === "dispensee" ? "Payé" : status}</span>;
+  return <span className={`pill ${map[status] || "blue"}`}>{labelStatut(status)}</span>;
 }
 
 export function Skeleton({ height = 16, width = "100%", className = "" }: {
@@ -104,16 +106,36 @@ export function OfflineBanner({ online }: { online: boolean }) {
   return (
     <div className="offline-banner" role="status">
       <WifiOff size={16} strokeWidth={2} aria-hidden />
-      Mode hors ligne - lecture cache, file d'actions en attente de reconnexion.
+      Hors ligne — vos actions seront enregistrées au retour du réseau.
     </div>
   );
 }
 
-export function Toast({ message, onClose }: { message: string; onClose: () => void }) {
+export function Toast({
+  message,
+  tone = "info",
+  onClose,
+}: {
+  message: string;
+  tone?: ToastTone;
+  onClose: () => void;
+}) {
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    if (!message) return;
+    const ms = tone === "error" ? 7000 : 4200;
+    const id = window.setTimeout(() => closeRef.current(), ms);
+    return () => window.clearTimeout(id);
+  }, [message, tone]);
   if (!message) return null;
+  const Icon = tone === "error" ? CircleAlert : tone === "success" ? CircleCheck : Info;
   return (
-    <div className="toast toast-in" role="status">
-      <span style={{ flex: 1 }}>{message}</span>
+    <div className={`toast toast-in toast-${tone}`} role={tone === "error" ? "alert" : "status"}>
+      <span className="toast-icon" aria-hidden>
+        <Icon size={18} strokeWidth={2.4} />
+      </span>
+      <span className="toast-text">{message}</span>
       <button type="button" className="toast-x" onClick={onClose} aria-label="Fermer">
         <X size={16} />
       </button>

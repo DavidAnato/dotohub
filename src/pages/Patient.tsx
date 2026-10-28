@@ -2,14 +2,17 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Calendar, FileText, FlaskConical, Plus, TriangleAlert, X } from "lucide-react";
 import { api } from "../api";
+import { labelStatut } from "../apiMessage";
 import { useAuth } from "../auth";
 import { Empty, StatusBadge, UrgenceHeader } from "../components";
 import { ConsentWaiting } from "../components/ConsentWaiting";
+import { EtablissementPanel } from "../components/EtablissementPanel";
 import { Avatar } from "../components/Avatar";
 import { useAppStore } from "../store/appStore";
 import {
   useConsultations,
   useCreateConsultation,
+  useUpdateConsultation,
   useAnnulerConsultation,
   useCreateOrdonnance,
   useDispenser,
@@ -23,18 +26,24 @@ import {
   useConstantes,
   useCreateConstante,
 } from "../queries/hooks";
+import {
+  datetimeLocalMin,
+  findAppointmentConflict,
+  formatConflictLabel,
+  isPastDateTime,
+} from "../utils/appointmentRules";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BON_STATUTS,
   emptyMedLine,
   formatDateFR,
+  medSheet,
   MEDICAMENT_FORMES,
   MEDICAMENT_MOMENTS,
   nowDateISO,
   nowISO,
   PRISE_EN_CHARGE,
   SPECIALITES,
-  summarizeMed,
   type MedLine,
 } from "../constants";
 
@@ -54,6 +63,16 @@ const ROLE_TABS: Record<string, TabKey[]> = {
 const RDV_WRITE_ROLES = new Set(["medecin", "receptionniste", "admin"]);
 const CLINICAL_WRITE_ROLES = new Set(["medecin", "admin"]); // consult + ordonnances
 const CONSTANTES_WRITE_ROLES = new Set(["infirmier", "medecin", "ambulancier", "admin"]);
+
+function consentGrantsFull(patient: { consent?: { granted?: boolean; expired?: boolean; admin?: boolean; direct_structure?: boolean; grant_expires_at?: string | null } } | null | undefined) {
+  const c = patient?.consent;
+  if (!c?.granted || c.expired) return false;
+  if (c.admin || c.direct_structure) return true;
+  if (!c.grant_expires_at) return true;
+  const end = Date.parse(String(c.grant_expires_at));
+  if (Number.isNaN(end)) return true;
+  return Date.now() < end;
+}
 
 function pickNextAppointment(list: any[] | undefined) {
   if (!list?.length) return null;
@@ -85,6 +104,7 @@ export default function Patient() {
   const [tab, setTab] = useState<TabKey>("historique");
   const [params] = useSearchParams();
   const [requesting, setRequesting] = useState(false);
+  const [dureeHeures, setDureeHeures] = useState("24");
   const [showRdv, setShowRdv] = useState(false);
   const [rdvBusy, setRdvBusy] = useState(false);
   const [rdvForm, setRdvForm] = useState({
@@ -119,6 +139,16 @@ export default function Patient() {
     : Array.isArray((patientAppts as any)?.results)
       ? (patientAppts as any).results
       : [];
+  const { data: agendaAppts } = useQuery({
+    queryKey: ["appointments"],
+    queryFn: () => api.appointments(),
+    enabled: canWriteRdv && showRdv,
+  });
+  const agendaList = Array.isArray(agendaAppts)
+    ? agendaAppts
+    : Array.isArray((agendaAppts as any)?.results)
+      ? (agendaAppts as any).results
+      : [];
   const nextRdv = pickNextAppointment(apptList);
 
   useEffect(() => {
@@ -127,8 +157,10 @@ export default function Patient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user?.role]);
 
-  const needsAccess = !!patient?.consent?.required && !patient?.consent?.granted;
-  const pending = !!patient?.consent?.pending;
+  const needsAccess = !consentGrantsFull(patient);
+  const pending = !!patient?.consent?.pending && !patient?.consent?.expired;
+  const dossierMasque = !!patient?.consent?.dossier_masque;
+  const needsDuration = !!patient?.consent?.needs_duration || patient?.consent?.route === "hopital_mere";
   const canRequestFull =
     needsAccess &&
     user?.role !== "admin" &&
@@ -146,12 +178,56 @@ export default function Patient() {
     return () => window.clearInterval(t);
   }, [needsAccess, pending, refetch]);
 
+  useEffect(() => {
+    if (!consentGrantsFull(patient)) return;
+    const end = patient?.consent?.grant_expires_at;
+    if (!end || patient?.consent?.direct_structure || patient?.consent?.admin) return;
+    const ms = Date.parse(String(end)) - Date.now();
+    if (Number.isNaN(ms)) return;
+    const t = window.setTimeout(() => {
+      void refetch();
+    }, Math.max(0, ms) + 500);
+    return () => window.clearTimeout(t);
+  }, [patient, refetch]);
+
+  useEffect(() => {
+    if (patient?.consent?.expired) {
+      setToast("Cet accès a expiré");
+      nav("/", { replace: true });
+      return;
+    }
+    if (!patient?.consent?.granted || consentGrantsFull(patient)) return;
+    let cancel = false;
+    void (async () => {
+      const res = await refetch();
+      if (cancel) return;
+      const next = res.data;
+      if (!next || consentGrantsFull(next)) return;
+      if (next.consent?.expired) {
+        setToast("Cet accès a expiré");
+        nav("/", { replace: true });
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [patient?.consent?.expired, patient?.consent?.granted, patient?.consent?.grant_expires_at, nav, refetch, setToast]);
+
   const requestFullAccess = async () => {
     if (!id) return;
+    const hours = Number(dureeHeures);
+    if (needsDuration && (!Number.isFinite(hours) || hours < 1)) {
+      setToast("Indiquez la durée d'accès en heures.");
+      return;
+    }
     setRequesting(true);
     try {
-      await api.requestAccess(Number(id));
-      setToast("Demande envoyée au patient.");
+      await api.requestAccess(Number(id), needsDuration ? { durationHours: hours } : undefined);
+      setToast(
+        needsDuration
+          ? "Demande envoyée à l'hôpital mère. Le dossier reste fermé."
+          : "Demande envoyée au patient."
+      );
       await refetch();
     } catch (e: any) {
       setToast(e?.data?.detail || e.message || "Impossible de demander l'accès.");
@@ -166,15 +242,32 @@ export default function Patient() {
       setToast("Indiquez la date et l'heure du RDV.");
       return;
     }
+    const debutDate = new Date(rdvForm.debut);
+    if (isPastDateTime(debutDate)) {
+      setToast("La date du rendez-vous ne peut pas être dans le passé.");
+      return;
+    }
     if (isReception && rdvForm.mode === "medecin" && !rdvForm.professionnel) {
       setToast("Choisissez un médecin, ou basculez sur « RDV réception ».");
       return;
+    }
+    let profId: number | undefined;
+    if (user?.role === "medecin") profId = user.id;
+    else if ((isReception || user?.role === "admin") && rdvForm.mode === "medecin" && rdvForm.professionnel) {
+      profId = Number(rdvForm.professionnel);
+    }
+    const conflict = findAppointmentConflict(agendaList, debutDate, profId);
+    if (conflict) {
+      const ok = window.confirm(
+        `Un rendez-vous existe déjà le ${formatConflictLabel(conflict)}.\n\nCréer quand même ce créneau ?`
+      );
+      if (!ok) return;
     }
     setRdvBusy(true);
     try {
       const body: Record<string, unknown> = {
         patient: patient.id,
-        debut: new Date(rdvForm.debut).toISOString(),
+        debut: debutDate.toISOString(),
         motif: rdvForm.motif || "Consultation",
         notes: rdvForm.notes,
       };
@@ -363,6 +456,7 @@ export default function Patient() {
                 className="input"
                 type="datetime-local"
                 value={rdvForm.debut}
+                min={datetimeLocalMin()}
                 onChange={(e) => setRdvForm({ ...rdvForm, debut: e.target.value })}
               />
             </div>
@@ -404,11 +498,19 @@ export default function Patient() {
     return (
       <div>
         {header}
-        {nextRdvBlock}
+        {dossierMasque ? null : nextRdvBlock}
         {rdvModal}
+        <EtablissementPanel
+          patientId={patient.id}
+          patient={patient}
+          etablissement={patient.etablissement}
+          photoUrl={patient.photo_url}
+          onChanged={() => void refetch()}
+        />
         <ConsentWaiting
           patientName={patient.full_name}
           role={user?.role}
+          message={patient.consent?.message}
           onCancel={() => {
             const accessId = patient?.consent?.access_request_id;
             void (async () => {
@@ -439,17 +541,37 @@ export default function Patient() {
     return (
       <div>
         {header}
-        {nextRdvBlock}
+        {dossierMasque ? null : nextRdvBlock}
         {rdvModal}
-        <UrgenceHeader u={urg} />
+        <EtablissementPanel
+          patientId={patient.id}
+          patient={patient}
+          etablissement={patient.etablissement}
+          photoUrl={patient.photo_url}
+          onChanged={() => void refetch()}
+        />
+        {dossierMasque ? null : <UrgenceHeader u={urg} />}
         <div className="card" style={{ marginBottom: 16 }}>
           <p style={{ marginBottom: 12 }}>
             {patient.consent?.message ||
               "Infos de base uniquement. Demandez l'accès complet pour consulter le dossier."}
           </p>
+          {needsDuration ? (
+            <label className="field" style={{ marginBottom: 12 }}>
+              <span className="label">Durée demandée (heures)</span>
+              <input
+                className="input"
+                type="number"
+                min={1}
+                max={8784}
+                value={dureeHeures}
+                onChange={(e) => setDureeHeures(e.target.value)}
+              />
+            </label>
+          ) : null}
           {canRequestFull ? (
             <button className="btn" disabled={requesting} onClick={() => void requestFullAccess()}>
-              {requesting ? "Envoi…" : "Demander l'accès complet"}
+              {requesting ? "Envoi…" : needsDuration ? "Demander l'accès à l'hôpital mère" : "Demander l'accès complet"}
             </button>
           ) : (
             <p className="muted small">
@@ -467,6 +589,13 @@ export default function Patient() {
       {header}
       {rdvModal}
       {nextRdvBlock}
+      <EtablissementPanel
+        patientId={patient.id}
+        patient={patient}
+        etablissement={patient.etablissement}
+        photoUrl={patient.photo_url}
+        onChanged={() => void refetch()}
+      />
       <UrgenceHeader u={urg} />
 
       <div className="tabs">
@@ -481,7 +610,9 @@ export default function Patient() {
         ))}
       </div>
 
-      {tab === "historique" && <Historique patientId={patient.id} />}
+      {tab === "historique" && (
+        <Historique patientId={patient.id} consultId={params.get("consult")} />
+      )}
       {tab === "ordonnances" && (
         <Ordonnances patientId={patient.id} patientName={patient.full_name} />
       )}
@@ -507,12 +638,19 @@ const labels: Record<TabKey, string> = {
   assurance: "Assurance",
 };
 
-function Historique({ patientId }: { patientId: number }) {
+function Historique({
+  patientId,
+  consultId,
+}: {
+  patientId: number;
+  consultId?: string | null;
+}) {
   const { user } = useAuth();
   const setToast = useAppStore((s) => s.setToast);
   const { data: raw } = useConsultations(patientId);
   const items = (raw?.results || raw || []) as any[];
   const createMut = useCreateConsultation(patientId);
+  const updateMut = useUpdateConsultation(patientId);
   const annulerMut = useAnnulerConsultation(patientId);
   const structures = ((user as any)?.structures || []) as { id: number; nom: string }[];
   const principaleId = (user as any)?.structure_principale as number | undefined;
@@ -527,10 +665,37 @@ function Historique({ patientId }: { patientId: number }) {
     motif: "",
     diagnostic: "",
     notes: "",
+    shared_with_patient: true,
+    synthese_patient: "",
   });
   const [preview, setPreview] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(
+    consultId ? Number(consultId) : null
+  );
 
   const canWrite = CLINICAL_WRITE_ROLES.has(user?.role || "");
+  const editing = items.find((c) => c.id === editingId) || null;
+
+  useEffect(() => {
+    if (!consultId) return;
+    const id = Number(consultId);
+    if (!id) return;
+    const found = items.find((c) => c.id === id);
+    if (found) {
+      setEditingId(id);
+      setForm({
+        type: found.type || "consultation",
+        specialite: found.specialite || defaultSpec,
+        structure: found.structure ? String(found.structure) : form.structure,
+        motif: found.motif || "",
+        diagnostic: found.diagnostic || "",
+        notes: found.notes || "",
+        shared_with_patient: true,
+        synthese_patient: found.synthese_patient || "",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [consultId, items.length]);
 
   const payload = () => ({
     patient: patientId,
@@ -541,25 +706,63 @@ function Historique({ patientId }: { patientId: number }) {
     motif: form.motif,
     diagnostic: form.diagnostic,
     notes: form.notes,
+    shared_with_patient: Boolean(form.synthese_patient.trim()),
+    synthese_patient: form.synthese_patient.trim(),
     extra: {},
   });
+
+  const resetForm = () => {
+    setForm({
+      type: "consultation",
+      specialite: defaultSpec,
+      structure: principaleId ? String(principaleId) : form.structure,
+      motif: "",
+      diagnostic: "",
+      notes: "",
+      shared_with_patient: true,
+      synthese_patient: "",
+    });
+    setPreview(false);
+    setEditingId(null);
+  };
+
+  const startEdit = (c: any) => {
+    setEditingId(c.id);
+    setForm({
+      type: c.type || "consultation",
+      specialite: c.specialite || defaultSpec,
+      structure: c.structure ? String(c.structure) : form.structure,
+      motif: c.motif || "",
+      diagnostic: c.diagnostic || "",
+      notes: c.notes || "",
+      shared_with_patient: true,
+      synthese_patient: c.synthese_patient || "",
+    });
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  };
 
   const create = () => {
     if (!form.structure) {
       setToast("Choisissez la structure de santé.");
       return;
     }
+    if (editingId) {
+      const { date: _date, extra: _extra, ...rest } = payload() as any;
+      updateMut.mutate(
+        { id: editingId, body: rest },
+        {
+          onSuccess: () => {
+            resetForm();
+            setToast("Consultation mise à jour");
+          },
+          onError: (e: any) => setToast(e?.data?.detail || e?.message || "Échec"),
+        }
+      );
+      return;
+    }
     createMut.mutate(payload(), {
       onSuccess: () => {
-        setForm({
-          type: "consultation",
-          specialite: defaultSpec,
-          structure: principaleId ? String(principaleId) : form.structure,
-          motif: "",
-          diagnostic: "",
-          notes: "",
-        });
-        setPreview(false);
+        resetForm();
         setToast("Consultation enregistrée");
       },
       onError: (e: any) => setToast(e?.data?.detail || e?.message || "Échec"),
@@ -585,7 +788,7 @@ function Historique({ patientId }: { patientId: number }) {
           </div>
           <div className="small muted" style={{ marginTop: 4 }}>
             {formatDateFR(c.date)}
-            {c.appointment_id ? " · Liée à un RDV" : " · Sans RDV (walk-in)"}
+            {c.appointment_id ? " · Lié à un rendez-vous" : " · Sans rendez-vous"}
           </div>
           <div style={{ marginTop: 6, lineHeight: 1.45 }}>
             {c.specialite ? (
@@ -614,8 +817,16 @@ function Historique({ patientId }: { patientId: number }) {
             </div>
           </div>
           {c.notes && <p style={{ marginTop: 8 }}>{c.notes}</p>}
+          {c.synthese_patient ? (
+            <p className="small" style={{ marginTop: 8 }}>
+              <strong>Synthèse patient :</strong> {c.synthese_patient}
+            </p>
+          ) : null}
           {canWrite && !c.annule && (
-            <div className="row" style={{ marginTop: 12 }}>
+            <div className="row" style={{ marginTop: 12, gap: 8, flexWrap: "wrap" }}>
+              <button className="btn sm" type="button" onClick={() => startEdit(c)}>
+                {c.incomplete ? "Compléter la consultation" : "Modifier"}
+              </button>
               <button
                 className="btn ghost sm"
                 type="button"
@@ -630,7 +841,24 @@ function Historique({ patientId }: { patientId: number }) {
       ))}
       {canWrite && (
         <div className="card">
-          <h3 style={{ marginBottom: 12 }}>Nouvelle consultation</h3>
+          <h3 style={{ marginBottom: 12 }}>
+            {editing
+              ? editing.appointment_id
+                ? "Compléter la consultation du rendez-vous"
+                : "Modifier la consultation"
+              : "Nouvelle consultation (sans rendez-vous)"}
+          </h3>
+          {editing?.appointment_id ? (
+            <p className="muted small" style={{ marginBottom: 12 }}>
+              Issue du rendez-vous. Remplissez le motif, le diagnostic et la synthèse
+              visible par le patient.
+            </p>
+          ) : !editing ? (
+            <p className="muted small" style={{ marginBottom: 12 }}>
+              Pour un passage sans rendez-vous : créez la consultation ici et remplissez
+              toutes les informations.
+            </p>
+          ) : null}
           <div className="grid cols-2" style={{ gap: 10 }}>
             <div className="field">
               <label className="label">Spécialité / domaine</label>
@@ -686,8 +914,59 @@ function Historique({ patientId }: { patientId: number }) {
               />
             </div>
           </div>
+          <div
+            className="field"
+            style={{
+              marginTop: 12,
+              padding: 14,
+              borderRadius: 12,
+              border: "1px solid #b7d7c9",
+              background: "linear-gradient(180deg, #eef8f3 0%, #f7fbf9 100%)",
+            }}
+          >
+            <label className="label" style={{ color: "#0a5c45" }}>
+              Ce que le patient verra
+            </label>
+            <p className="muted small" style={{ margin: "4px 0 10px" }}>
+              Synthèse simplifiée (motif, recommandations, prochaines étapes). Optionnelle.
+              Les notes cliniques ci-dessous restent privées.
+            </p>
+            <textarea
+              className="textarea"
+              placeholder="Ex. Contrôle tension OK. Continuer le traitement. RDV dans 3 semaines."
+              value={form.synthese_patient}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  synthese_patient: e.target.value,
+                  shared_with_patient: e.target.value.trim().length > 0,
+                })
+              }
+            />
+          </div>
+          <div
+            className="field"
+            style={{
+              marginTop: 12,
+              padding: 14,
+              borderRadius: 12,
+              border: "1px solid var(--border, #d5dde6)",
+              background: "var(--surface-2, #f4f6f8)",
+            }}
+          >
+            <label className="label">Vos notes privées (pro uniquement)</label>
+            <p className="muted small" style={{ margin: "4px 0 10px" }}>
+              Notes cliniques, hypothèses, observations — jamais visibles par le patient.
+            </p>
+            <textarea
+              className="textarea"
+              placeholder="Notes / observations médicales"
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            />
+          </div>
           <div className="field" style={{ marginTop: 10 }}>
-            <label className="label">Diagnostic</label>
+            <label className="label">Diagnostic (pro)</label>
             <input
               className="input"
               placeholder="Diagnostic"
@@ -695,14 +974,7 @@ function Historique({ patientId }: { patientId: number }) {
               onChange={(e) => setForm({ ...form, diagnostic: e.target.value })}
             />
           </div>
-          <textarea
-            className="textarea"
-            style={{ margin: "12px 0" }}
-            placeholder="Notes / observations médicales"
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-          />
-          <p className="muted small">Date et heure : {formatDateFR(nowISO())} (automatiques)</p>
+          <p className="muted small">Date et heure : {formatDateFR(nowISO())}</p>
           {preview ? (
             <div className="card" style={{ marginBottom: 12, background: "var(--surface-2, transparent)" }}>
               <strong>Récapitulatif</strong>
@@ -720,14 +992,98 @@ function Historique({ patientId }: { patientId: number }) {
             <button className="btn ghost" type="button" onClick={() => setPreview((v) => !v)}>
               {preview ? "Masquer l'aperçu" : "Aperçu"}
             </button>
-            <button className="btn" onClick={create} disabled={!form.structure || createMut.isPending}>
-              {createMut.isPending ? "…" : "Enregistrer"}
+            {editing ? (
+              <button className="btn ghost" type="button" onClick={resetForm}>
+                Annuler la modification
+              </button>
+            ) : null}
+            <button
+              className="btn"
+              onClick={create}
+              disabled={!form.structure || createMut.isPending || updateMut.isPending}
+            >
+              {createMut.isPending || updateMut.isPending ? "…" : "Enregistrer"}
             </button>
           </div>
         </div>
       )}
     </div>
   );
+}
+
+function MedBlock({ m }: { m: MedLine | Record<string, unknown> }) {
+  const sheet = medSheet(m as MedLine);
+  if (!sheet.head && !sheet.quantite) return null;
+  return (
+    <div className="rx-line">
+      <div className="rx-line-head">
+        <div className="rx-line-title">{sheet.head}</div>
+        {sheet.quantite ? <div className="rx-qty">{sheet.quantite}</div> : null}
+      </div>
+      {sheet.posologie ? <div className="rx-sub">Posologie : {sheet.posologie}</div> : null}
+      {sheet.duree ? <div className="rx-sub">Durée du traitement : {sheet.duree}</div> : null}
+      {sheet.instructions ? <div className="rx-sub rx-note">{sheet.instructions}</div> : null}
+    </div>
+  );
+}
+
+function printOrdonnance(o: any, patientName?: string) {
+  const esc = (value: unknown) =>
+    String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  const lines = (o.medicaments || [])
+    .map((m: MedLine) => {
+      const sheet = medSheet(m);
+      return `<article class="rx">
+        <div class="head"><strong>${esc(sheet.head)}</strong><span>${esc(sheet.quantite)}</span></div>
+        ${sheet.posologie ? `<div>Posologie : ${esc(sheet.posologie)}</div>` : ""}
+        ${sheet.duree ? `<div>Durée du traitement : ${esc(sheet.duree)}</div>` : ""}
+        ${sheet.instructions ? `<div>${esc(sheet.instructions)}</div>` : ""}
+      </article>`;
+    })
+    .join("");
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Ordonnance</title>
+    <style>
+      body { font-family: Georgia, "Times New Roman", serif; color: #132438; margin: 32px; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      .meta { color: #334155; font-size: 13px; margin-bottom: 18px; }
+      .rx { border-top: 1px solid #c5d0de; padding: 12px 0; }
+      .head { display: flex; justify-content: space-between; gap: 16px; font-size: 15px; }
+      .rx div { margin-top: 4px; font-size: 14px; }
+    </style></head><body>
+    <h1>Ordonnance</h1>
+    <div class="meta">
+      ${esc(patientName || o.patient_nom || "")}<br>
+      ${o.date ? esc(new Date(o.date).toLocaleDateString("fr-FR")) : ""}
+      ${o.medecin_nom ? ` · ${esc(o.medecin_nom)}` : ""}
+      ${o.structure_nom ? ` · ${esc(o.structure_nom)}` : ""}
+    </div>
+    ${lines}
+    </body></html>`;
+  const frame = document.createElement("iframe");
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.position = "fixed";
+  frame.style.right = "0";
+  frame.style.bottom = "0";
+  frame.style.width = "0";
+  frame.style.height = "0";
+  frame.style.border = "0";
+  document.body.appendChild(frame);
+  const doc = frame.contentDocument;
+  if (!doc) {
+    frame.remove();
+    return;
+  }
+  frame.onload = () => {
+    frame.contentWindow?.focus();
+    frame.contentWindow?.print();
+    window.setTimeout(() => frame.remove(), 1000);
+  };
+  doc.open();
+  doc.write(html);
+  doc.close();
 }
 
 function Ordonnances({ patientId, patientName }: { patientId: number; patientName?: string }) {
@@ -828,27 +1184,11 @@ function Ordonnances({ patientId, patientName }: { patientId: number; patientNam
             ) : null}
             {o.structure_nom ? <div>{o.structure_nom}</div> : null}
           </div>
-          <ul style={{ margin: "10px 0 0 18px" }}>
+          <div className="rx-list">
             {o.medicaments.map((m: any) => (
-              <li key={m.id}>
-                <strong>{m.nom}</strong>
-                {[
-                  m.dosage,
-                  m.forme,
-                  m.quantite,
-                  m.unites_par_prise && m.frequence_par_jour
-                    ? `${m.unites_par_prise} × ${m.frequence_par_jour}`
-                    : m.frequence,
-                  m.duree_jours ? `${m.duree_jours} j` : "",
-                  MEDICAMENT_MOMENTS.find((x) => x.value === m.moment)?.label,
-                  m.instructions,
-                ]
-                  .filter((x) => x && x !== "-")
-                  .map((x) => ` - ${x}`)
-                  .join("")}
-              </li>
+              <MedBlock key={m.id} m={m} />
             ))}
-          </ul>
+          </div>
           {o.alertes_interactions?.length > 0 && (
             <div className="pill amber" style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 6 }}>
               <TriangleAlert size={13} strokeWidth={2.5} aria-hidden />
@@ -876,6 +1216,11 @@ function Ordonnances({ patientId, patientName }: { patientId: number; patientNam
                 Annuler le paiement
               </button>
             )}
+            {canWrite && (
+              <button className="btn ghost sm" type="button" onClick={() => printOrdonnance(o, patientName)}>
+                Imprimer
+              </button>
+            )}
             {canWrite && o.statut === "active" && (
               <button
                 className="btn ghost sm"
@@ -893,7 +1238,7 @@ function Ordonnances({ patientId, patientName }: { patientId: number; patientNam
       {open ? (
         <div className="settings-modal-root" role="dialog" aria-modal="true" aria-label="Nouvelle ordonnance">
           <button type="button" className="settings-modal-backdrop" aria-label="Fermer" onClick={() => setOpen(false)} />
-          <div className="settings-modal-card" style={{ maxWidth: 640 }}>
+          <div className="settings-modal-card rx-modal">
             <div className="settings-modal-head">
               <span className="settings-modal-ico">
                 <Plus size={18} />
@@ -910,12 +1255,12 @@ function Ordonnances({ patientId, patientName }: { patientId: number; patientNam
               {step === "preview" ? (
                 <div>
                   <p className="muted small" style={{ marginBottom: 8 }}>Aperçu avant validation</p>
-                  <ul style={{ margin: "0 0 12px 18px" }}>
+                  <div className="rx-list rx-preview">
                     {meds.filter((m) => m.nom).map((m, i) => (
-                      <li key={i}>{summarizeMed(m)}</li>
+                      <MedBlock key={i} m={m} />
                     ))}
-                  </ul>
-                  <div className="row" style={{ gap: 8, justifyContent: "flex-end" }}>
+                  </div>
+                  <div className="row rx-actions" style={{ gap: 8, justifyContent: "flex-end" }}>
                     <button className="btn ghost" type="button" onClick={() => setStep("edit")}>
                       Modifier
                     </button>
@@ -949,103 +1294,130 @@ function Ordonnances({ patientId, patientName }: { patientId: number; patientNam
                           </button>
                         ) : null}
                       </div>
-                      <div className="grid cols-2" style={{ gap: 8 }}>
-                        <input
-                          className="input"
-                          placeholder="Nom"
-                          value={m.nom}
-                          onChange={(e) =>
-                            setMeds(meds.map((x, j) => (j === i ? { ...x, nom: e.target.value } : x)))
-                          }
-                        />
-                        <input
-                          className="input"
-                          placeholder="Dosage / concentration (ex. 1000 mg)"
-                          value={m.dosage}
-                          onChange={(e) =>
-                            setMeds(meds.map((x, j) => (j === i ? { ...x, dosage: e.target.value } : x)))
-                          }
-                        />
-                        <select
-                          className="select"
-                          value={m.forme}
-                          onChange={(e) =>
-                            setMeds(meds.map((x, j) => (j === i ? { ...x, forme: e.target.value } : x)))
-                          }
-                        >
-                          {MEDICAMENT_FORMES.map((f) => (
-                            <option key={f} value={f}>
-                              {f}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          className="input"
-                          placeholder="Quantité à délivrer (ex. 1 boîte)"
-                          value={m.quantite}
-                          onChange={(e) =>
-                            setMeds(meds.map((x, j) => (j === i ? { ...x, quantite: e.target.value } : x)))
-                          }
-                        />
-                        <input
-                          className="input"
-                          placeholder="Unités par prise (ex. 2 comprimés)"
-                          value={m.unites_par_prise}
-                          onChange={(e) =>
-                            setMeds(
-                              meds.map((x, j) => (j === i ? { ...x, unites_par_prise: e.target.value } : x))
-                            )
-                          }
-                        />
-                        <input
-                          className="input"
-                          placeholder="Fréquence (ex. 3/jour)"
-                          value={m.frequence_par_jour}
-                          onChange={(e) =>
-                            setMeds(
-                              meds.map((x, j) => (j === i ? { ...x, frequence_par_jour: e.target.value } : x))
-                            )
-                          }
-                        />
-                        <input
-                          className="input"
-                          type="number"
-                          placeholder="Durée (jours)"
-                          value={m.duree_jours}
-                          onChange={(e) =>
-                            setMeds(
-                              meds.map((x, j) =>
-                                j === i ? { ...x, duree_jours: e.target.value ? +e.target.value : "" } : x
+                      <div className="grid cols-2 rx-form" style={{ gap: 8 }}>
+                        <label className="rx-field">
+                          <span>Nom du médicament</span>
+                          <input
+                            className="input"
+                            placeholder="Nom"
+                            value={m.nom}
+                            onChange={(e) =>
+                              setMeds(meds.map((x, j) => (j === i ? { ...x, nom: e.target.value } : x)))
+                            }
+                          />
+                        </label>
+                        <label className="rx-field">
+                          <span>Forme pharmaceutique</span>
+                          <select
+                            className="select"
+                            value={m.forme}
+                            onChange={(e) =>
+                              setMeds(meds.map((x, j) => (j === i ? { ...x, forme: e.target.value } : x)))
+                            }
+                          >
+                            {MEDICAMENT_FORMES.map((f) => (
+                              <option key={f} value={f}>
+                                {f}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="rx-field">
+                          <span>Dosage ou concentration</span>
+                          <input
+                            className="input"
+                            placeholder="ex. 100 mg"
+                            value={m.dosage}
+                            onChange={(e) =>
+                              setMeds(meds.map((x, j) => (j === i ? { ...x, dosage: e.target.value } : x)))
+                            }
+                          />
+                        </label>
+                        <label className="rx-field">
+                          <span>Quantité prescrite</span>
+                          <input
+                            className="input"
+                            placeholder="ex. 2 boîtes"
+                            value={m.quantite}
+                            onChange={(e) =>
+                              setMeds(meds.map((x, j) => (j === i ? { ...x, quantite: e.target.value } : x)))
+                            }
+                          />
+                        </label>
+                        <label className="rx-field">
+                          <span>Quantité par prise</span>
+                          <input
+                            className="input"
+                            placeholder="ex. 1 comprimé"
+                            value={m.unites_par_prise}
+                            onChange={(e) =>
+                              setMeds(
+                                meds.map((x, j) => (j === i ? { ...x, unites_par_prise: e.target.value } : x))
                               )
-                            )
+                            }
+                          />
+                        </label>
+                        <label className="rx-field">
+                          <span>Fréquence</span>
+                          <input
+                            className="input"
+                            placeholder="ex. 2 fois par jour"
+                            value={m.frequence_par_jour}
+                            onChange={(e) =>
+                              setMeds(
+                                meds.map((x, j) => (j === i ? { ...x, frequence_par_jour: e.target.value } : x))
+                              )
+                            }
+                          />
+                        </label>
+                        <label className="rx-field">
+                          <span>Moment de prise</span>
+                          <select
+                            className="select"
+                            value={m.moment}
+                            onChange={(e) =>
+                              setMeds(meds.map((x, j) => (j === i ? { ...x, moment: e.target.value } : x)))
+                            }
+                          >
+                            {MEDICAMENT_MOMENTS.map((mo) => (
+                              <option key={mo.value} value={mo.value}>
+                                {mo.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="rx-field">
+                          <span>Durée du traitement (jours)</span>
+                          <input
+                            className="input"
+                            type="number"
+                            min={1}
+                            placeholder="ex. 7"
+                            value={m.duree_jours}
+                            onChange={(e) =>
+                              setMeds(
+                                meds.map((x, j) =>
+                                  j === i ? { ...x, duree_jours: e.target.value ? +e.target.value : "" } : x
+                                )
+                              )
+                            }
+                          />
+                        </label>
+                      </div>
+                      <label className="rx-field" style={{ marginTop: 8 }}>
+                        <span>Instructions complémentaires</span>
+                        <input
+                          className="input"
+                          placeholder="Optionnel"
+                          value={m.instructions}
+                          onChange={(e) =>
+                            setMeds(meds.map((x, j) => (j === i ? { ...x, instructions: e.target.value } : x)))
                           }
                         />
-                        <select
-                          className="select"
-                          value={m.moment}
-                          onChange={(e) =>
-                            setMeds(meds.map((x, j) => (j === i ? { ...x, moment: e.target.value } : x)))
-                          }
-                        >
-                          {MEDICAMENT_MOMENTS.map((mo) => (
-                            <option key={mo.value} value={mo.value}>
-                              {mo.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <input
-                        className="input"
-                        style={{ marginTop: 8 }}
-                        placeholder="Instructions complémentaires (optionnel)"
-                        value={m.instructions}
-                        onChange={(e) =>
-                          setMeds(meds.map((x, j) => (j === i ? { ...x, instructions: e.target.value } : x)))
-                        }
-                      />
+                      </label>
                     </div>
                   ))}
-                  <div className="row" style={{ gap: 8, marginTop: 8, justifyContent: "space-between" }}>
+                  <div className="row rx-actions" style={{ gap: 8, marginTop: 8, justifyContent: "space-between" }}>
                     <button
                       className="btn ghost sm"
                       type="button"
@@ -1236,7 +1608,7 @@ function Examens({ patientId, patientName }: { patientId: number; patientName?: 
         <>
           <h3 style={{ margin: 0, fontSize: 14 }}>Demandes (bons)</h3>
           {bons.map((b) => {
-            const st = BON_STATUTS[b.statut] || { label: b.statut_label || b.statut, cls: "blue" };
+            const st = BON_STATUTS[b.statut] || { label: labelStatut(b.statut, b.statut_label), cls: "blue" };
             return (
               <div className="card" key={`bon-${b.id}`}>
                 <div className="row" style={{ justifyContent: "space-between" }}>
